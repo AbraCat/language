@@ -1,0 +1,25 @@
+// OP_CODEGEN(name, n_operands, value, priority, text)
+
+OP_CODEGEN(LE,  2, (arg1 <  arg2),  1, "les")
+OP_CODEGEN(LEQ, 2, (arg1 <= arg2),  1, "leq")
+OP_CODEGEN(GE,  2, (arg1 >  arg2),  1, "gre")
+OP_CODEGEN(GEQ, 2, (arg1 >= arg2),  1, "geq")
+OP_CODEGEN(EQ,  2, (arg1 == arg2),  1, "eq")
+OP_CODEGEN(NEQ, 2, (arg1 != arg2),  1, "neq")
+
+OP_CODEGEN(ADD, 2, (arg1 + arg2),   2, "+")
+OP_CODEGEN(SUB, 2, (arg1 - arg2),   2, "-")
+OP_CODEGEN(MUL, 2, (arg1 * arg2),   3, "*")
+OP_CODEGEN(DIV, 2, (arg1 / arg2),   3, "/")
+OP_CODEGEN(POW, 2, pow(arg1, arg2), 4, "^")
+
+OP_CODEGEN(IF,    2, 0,             0, "if")
+OP_CODEGEN(ELSE,  1, 0,             0, "else")
+OP_CODEGEN(WHILE, 2, 0,             0, "while")
+OP_CODEGEN(FUNC,  3, 0,             0, "func")
+OP_CODEGEN(VAR,   1, 0,             0, "var")
+OP_CODEGEN(COMMA, 2, 0,             0, ",")
+
+OP_CODEGEN(OPEN_BRACKET,  0, 0,     0, "(")
+OP_CODEGEN(CLOSE_BRACKET, 0, 0,     0, ")")
+OP_CODEGEN(END,           0, 0,     0, "$")
