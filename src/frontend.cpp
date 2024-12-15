@@ -9,21 +9,38 @@
 
 #define CUR_NODE (pars->s[pars->p])
 #define INCR_P ++(pars->p)
-#define SYNT_ERR(exp) {pars->synt_err = {1, pars->p, exp, pars->s + pars->p}; return ERR_OK;}
+#define START_RULE myAssert(pars != NULL && node != NULL && *node == NULL); int oldp = pars->p;
+#define SYNT_ERR(exp) {pars->synt_err = {1, pars->p, exp, pars->s + pars->p}; pars->p = oldp; return ERR_OK;}
 #define NO_SYNT_ERR_RET {pars->synt_err.err = 0; return ERR_OK;}
-#define RET_IF_SYNT_ERR if (pars->synt_err.err) return ERR_OK
+#define RET_IF_SYNT_ERR if (pars->synt_err.err) { pars->p = oldp; return ERR_OK; }
 
 #define CALL_SYNT_ERR if (pars->synt_err.err) syntaxErr(&pars->synt_err)
+
+typedef ErrEnum (*RuleFunc)(Parser*, Node**);
 
 static void syntaxErr(SyntaxErr* synt_err);
 
 static ErrEnum getG(Parser* pars, Node** node);
-static ErrEnum getFdecl(Parser* pars, Node** node);
+
+static ErrEnum getFuncDecl(Parser* pars, Node** node);
+static ErrEnum getFuncArg(Parser* pars, Node** node);
+static ErrEnum getBody(Parser* pars, Node** node);
+static ErrEnum getS(Parser* pars, Node** node);
+
+static ErrEnum getIfLike(Parser* pars, Node** node, OpEnum op_code);
+
+static ErrEnum getVarDecl(Parser* pars, Node** node);
+static ErrEnum getIf(Parser* pars, Node** node);
+static ErrEnum getWhile(Parser* pars, Node** node);
+static ErrEnum getRet(Parser* pars, Node** node);
+static ErrEnum getAssign(Parser* pars, Node** node);
+
 static ErrEnum getE1(Parser* pars, Node** node);
 static ErrEnum getE(Parser* pars, Node** node, int rule_num);
 static ErrEnum getP(Parser* pars, Node** node);
 
-static ErrEnum getCommaSeparated(Parser* pars, Node** node, int* n_nodes, ErrEnum (*rule)(Parser*, Node**));
+static ErrEnum getCommaSeparated(Parser* pars, Node** node,                   int* n_nodes, ErrEnum (*rule)(Parser*, Node**));
+static ErrEnum getInBrackets    (Parser* pars, Node** node, bool allow_empty, int* n_nodes, ErrEnum (*rule)(Parser*, Node**));
 
 ErrEnum runFrontend(const char* fin_name, Node** tree)
 {
@@ -62,8 +79,9 @@ void syntaxErr(SyntaxErr* synt_err)
 ErrEnum getG(Parser* pars, Node** node)
 {
     myAssert(pars != NULL && node != NULL && *node == NULL);
+    START_RULE;
 
-    returnErr(getE(pars, node, 1));
+    returnErr(getCommaSeparated(pars, node, NULL, getFuncDecl));
     RET_IF_SYNT_ERR;
     if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_END)
         SYNT_ERR("$");
@@ -74,6 +92,8 @@ ErrEnum getG(Parser* pars, Node** node)
 static ErrEnum getCommaSeparated(Parser* pars, Node** node, int* n_nodes, ErrEnum (*rule)(Parser*, Node**))
 {
     myAssert(pars != NULL && node != NULL && *node == NULL && rule != NULL);
+    START_RULE;
+
     returnErr(rule(pars, node));
     RET_IF_SYNT_ERR;
     int node_cnt = 1;
@@ -96,9 +116,216 @@ static ErrEnum getCommaSeparated(Parser* pars, Node** node, int* n_nodes, ErrEnu
     NO_SYNT_ERR_RET;
 }
 
-static ErrEnum getFdecl(Parser* pars, Node** node)
+
+static ErrEnum getInBrackets(Parser* pars, Node** node, bool allow_empty, int* n_nodes, ErrEnum (*rule)(Parser*, Node**))
 {
+    START_RULE;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_OPEN_BRACKET) SYNT_ERR("(");
+    INCR_P;
+    if (allow_empty && CUR_NODE.type == TYPE_OP && CUR_NODE.val.op_code == OP_CLOSE_BRACKET)
+    {
+        if (n_nodes != NULL) *n_nodes = 0;
+        INCR_P;
+        NO_SYNT_ERR_RET;
+    }
+    returnErr(getCommaSeparated(pars, node, n_nodes, rule));
+    RET_IF_SYNT_ERR;
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_CLOSE_BRACKET) SYNT_ERR(")");
+    INCR_P;
+    NO_SYNT_ERR_RET;
+}
+
+static ErrEnum getFuncDecl(Parser* pars, Node** node)
+{
+    START_RULE;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_FUNC) SYNT_ERR("func");
+    Node *op_func_node = &CUR_NODE;
+    INCR_P;
+
+    if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("FUNC NAME");
+    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    if (name_struct->type == NAME_VAR) SYNT_ERR("VAR AND FUNC WITH SAME NAME"); // can only happen with gloabl vars which are not supported yet
+    if (name_struct->type == NAME_UNDECL) name_struct->type = NAME_FUNC;
+    CUR_NODE.type = TYPE_FUNC;
+    CUR_NODE.val.func_name = name_struct->name_str;
+    Node *func_name_node = &CUR_NODE;
+    INCR_P;
+
+    Node* bracket_node = &CUR_NODE;
+    int n_args = -1;
+    returnErr(getInBrackets(pars, &bracket_node->lft, 1, &n_args, getFuncArg));
+    RET_IF_SYNT_ERR;
+
+    returnErr(getBody(pars, &bracket_node->rgt));
+    RET_IF_SYNT_ERR;
+
+    if (bracket_node->lft != NULL) bracket_node->lft->parent = bracket_node;
+    if (bracket_node->rgt != NULL) bracket_node->rgt->parent = bracket_node;
+    op_func_node->lft = func_name_node;
+    op_func_node->rgt = bracket_node;
+    func_name_node->parent = op_func_node;
+    bracket_node->parent = op_func_node;
+    *node = op_func_node;
+
+    NO_SYNT_ERR_RET;
+}
+
+static ErrEnum getFuncArg(Parser* pars, Node** node)
+{
+    START_RULE;
+    if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("VAR NAME");
+    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    if (name_struct->type != NAME_UNDECL) SYNT_ERR("NAME ALREADY USED");
+    name_struct->type = NAME_VAR;
+    *node = &CUR_NODE;
+    INCR_P;
+    NO_SYNT_ERR_RET;
+}
+
+static ErrEnum getBody(Parser* pars, Node** node)
+{
+    returnErr(getInBrackets(pars, node, 1, NULL, getS));
+}
+
+static ErrEnum getS(Parser* pars, Node** node)
+{
+    START_RULE;
+
+    returnErr(getVarDecl(pars, node));
+    if (pars->synt_err.err == 0) return ERR_OK;
+    returnErr(getIf(pars, node));
+    if (pars->synt_err.err == 0) return ERR_OK;
+    returnErr(getWhile(pars, node));
+    if (pars->synt_err.err == 0) return ERR_OK;
+    returnErr(getRet(pars, node));
+    if (pars->synt_err.err == 0) return ERR_OK;
+    returnErr(getAssign(pars, node));
+    if (pars->synt_err.err == 0) return ERR_OK;
+    returnErr(getE1(pars, node));
     return ERR_OK;
+}
+
+static ErrEnum getVarDecl(Parser* pars, Node** node)
+{
+    START_RULE;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_VAR) SYNT_ERR("var");
+    Node* op_var_node = &CUR_NODE;
+    INCR_P;
+
+    if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("VAR NAME");
+    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    if (name_struct->type != NAME_UNDECL) SYNT_ERR("NAME ALREADY USED");
+    name_struct->type = NAME_VAR;
+    op_var_node->lft = &CUR_NODE;
+    INCR_P;
+
+    *node = op_var_node;
+    NO_SYNT_ERR_RET;
+}
+
+static ErrEnum getIfLike(Parser* pars, Node** node, OpEnum op_code)
+{
+    START_RULE;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != op_code) SYNT_ERR("operator");
+    Node* if_node = &CUR_NODE;
+    INCR_P;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_OPEN_BRACKET) SYNT_ERR("(");
+    Node *open_bracket_node = &CUR_NODE;
+    INCR_P;
+
+    returnErr(getE1(pars, &if_node->lft));
+    RET_IF_SYNT_ERR;
+    if_node->lft->parent = if_node;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_CLOSE_BRACKET) SYNT_ERR(")");
+    INCR_P;
+
+    returnErr(getBody(pars, &if_node->rgt));
+    RET_IF_SYNT_ERR;
+    if_node->rgt->parent = if_node;
+
+    *node = if_node;
+    NO_SYNT_ERR_RET;
+}
+
+static ErrEnum getIf(Parser* pars, Node** node)
+{
+    START_RULE;
+
+    Node* if_node = NULL;
+    returnErr(getIfLike(pars, &if_node, OP_IF));
+    RET_IF_SYNT_ERR;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_OPEN_BRACKET)
+    {
+        *node = if_node;
+        NO_SYNT_ERR_RET;
+    }
+
+    Node *else_body = NULL;
+    returnErr(getBody(pars, &else_body));
+    RET_IF_SYNT_ERR;
+
+    Node *open_bracket_node = if_node + 1, *if_body = if_node->rgt;
+    if_node->rgt = open_bracket_node;
+    open_bracket_node->parent = if_node;
+    open_bracket_node->lft = if_body;
+    if_body->parent = open_bracket_node;
+    open_bracket_node->rgt = else_body;
+    else_body->parent = open_bracket_node;
+    
+    *node = if_node;
+    NO_SYNT_ERR_RET;
+}
+
+static ErrEnum getWhile(Parser* pars, Node** node)
+{
+    returnErr(getIfLike(pars, node, OP_WHILE));
+}
+
+static ErrEnum getRet(Parser* pars, Node** node)
+{
+    START_RULE;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_RET) SYNT_ERR("return");
+    Node *ret_node = &CUR_NODE;
+    INCR_P;
+
+    returnErr(getE1(pars, &ret_node->lft));
+    RET_IF_SYNT_ERR;
+    ret_node->lft->parent = ret_node;
+
+    *node = ret_node;
+    NO_SYNT_ERR_RET;
+}
+
+static ErrEnum getAssign(Parser* pars, Node** node)
+{
+    START_RULE;
+
+    if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("VAR NAME");
+    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    if (name_struct->type != NAME_VAR) SYNT_ERR("NO VAR WITH SUCH NAME");
+    Node* var_node = &CUR_NODE;
+    INCR_P;
+
+    if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_ASSIGN) SYNT_ERR("=");
+    Node* assign_node = &CUR_NODE;
+    INCR_P;
+
+    returnErr(getE1(pars, &assign_node->rgt));
+    RET_IF_SYNT_ERR;
+    assign_node->lft = var_node;
+    var_node->parent = assign_node;
+    assign_node->rgt->parent = assign_node;
+
+    *node = assign_node;
+    NO_SYNT_ERR_RET;
 }
 
 ErrEnum getE1(Parser* pars, Node** node) { return getE(pars, node, 1); }
@@ -108,6 +335,7 @@ ErrEnum getE(Parser* pars, Node** node, int rule_num)
     const int max_rule_num = 4;
     myAssert(pars != NULL && node != NULL && *node == NULL);
     myAssert(0 <= rule_num || rule_num <= max_rule_num);
+    START_RULE;
 
     if (rule_num == max_rule_num) returnErr(getP(pars, node))
     else returnErr(getE(pars, node, rule_num + 1));
@@ -137,20 +365,6 @@ ErrEnum getE(Parser* pars, Node** node, int rule_num)
         lft->parent = op;
         rgt->parent = op;
         *node = op;
-
-        // (*node)->parent = _NODE(TYPE_OP, {.op_code = op_code}, NULL, *node, NULL);
-        // *node = (*node)->parent;
-        // INCR_P;
-
-        // if (rule_num == max_rule_num)
-        // {
-        //     returnErr(getP(pars, &(*node)->rgt));
-        //     RET_IF_SYNT_ERR;
-        // }
-        // else returnErr(getE(pars, &(*node)->rgt, rule_num + 1));
-        // RET_IF_SYNT_ERR;
-
-        // (*node)->rgt->parent = *node;
     }
     NO_SYNT_ERR_RET;
 }
@@ -158,6 +372,7 @@ ErrEnum getE(Parser* pars, Node** node, int rule_num)
 ErrEnum getP(Parser* pars, Node** node)
 {
     myAssert(pars != NULL && node != NULL && *node == NULL);
+    START_RULE;
 
     if (CUR_NODE.type == TYPE_OP && CUR_NODE.val.op_code == OP_OPEN_BRACKET)
     {
@@ -183,33 +398,22 @@ ErrEnum getP(Parser* pars, Node** node)
         if (name_struct->type == NAME_VAR) SYNT_ERR("VAR AND FUNC WITH SAME NAME");
         CUR_NODE.type = TYPE_FUNC;
         CUR_NODE.val.func_name = name_struct->name_str;
+        name_struct->type = NAME_FUNC;
         Node* func_node = &CUR_NODE;
         INCR_P;
-        INCR_P;
-        int n_args = 0;
-        returnErr(getCommaSeparated(pars, &func_node->lft, &n_args, getE1));
-        func_node->lft->parent = func_node;
+
+        int n_args = -1;
+        returnErr(getInBrackets(pars, &func_node->lft, 1, &n_args, getE1));
         RET_IF_SYNT_ERR;
         if (name_struct->n_args >= 0 && name_struct->n_args != n_args) SYNT_ERR("SAME FUNC WITH DIFFERENT NUM OF ARGS");
         if (name_struct->n_args < 0) name_struct->n_args = n_args;
-
-        if (CUR_NODE.type != TYPE_OP || CUR_NODE.val.op_code != OP_CLOSE_BRACKET) SYNT_ERR(")");
-        INCR_P;
-        name_struct->type = NAME_FUNC;
+        if (func_node->lft != NULL) func_node->lft->parent = func_node;
         *node = func_node;
         NO_SYNT_ERR_RET;
     }
     if (name_struct->type == NAME_FUNC) SYNT_ERR("NO VAR WITH SUCH NAME"); // if (name_struct->type != NAME_VAR)
+    name_struct->type = NAME_VAR; // delete, change when declaring/undeclaring var
     *node = &CUR_NODE;
     INCR_P;
     NO_SYNT_ERR_RET;
-
-
-
-    // returnErr(getN(pars, node));
-    // if (pars->synt_err.err == 0) return ERR_OK;
-    // returnErr(getV(pars, node));
-    // if (pars->synt_err.err == 0) return ERR_OK;
-    // returnErr(getF(pars, node));
-    // return ERR_OK;
 }
