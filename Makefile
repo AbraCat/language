@@ -1,33 +1,35 @@
-.PHONY: all clean prc asm dis
+.PHONY: all clean prc cmp
 
-all: exe/proc.exe exe/asm.exe
+all: exe/proc.exe exe/comp.exe
 
 prc: all
 	@exe/proc.exe
 	
-asm: all
-	@exe/asm.exe
-
-dis: all
-	@exe/asm.exe -d
+cmp: all
+	@exe/comp.exe
 
 clean:
 	@rmdir d /s /q
 	@rmdir o /s /q
 	@rmdir exe /s /q
+
 	@mkdir d
 	@mkdir o
 	@mkdir exe
+
 	@mkdir d\stack
 	@mkdir d\processor
 	@mkdir d\assembler
 	@mkdir d\disassembler
 	@mkdir d\tree
+	@mkdir d\compiler
+
 	@mkdir o\stack
 	@mkdir o\processor
 	@mkdir o\assembler
 	@mkdir o\disassembler
 	@mkdir o\tree
+	@mkdir o\compiler
 
 clean_log:
 	@rmdir log /s /q
@@ -44,18 +46,20 @@ PROC_O_FILES   := $(patsubst %.cpp,o/processor/%.o,$(notdir $(wildcard src/proce
 ASM_O_FILES    := $(patsubst %.cpp,o/assembler/%.o,$(notdir $(wildcard src/assembler/*.cpp)))
 DISASM_O_FILES := $(patsubst %.cpp,o/disassembler/%.o,$(notdir $(wildcard src/disassembler/*.cpp)))
 TREE_O_FILES   := $(patsubst %.cpp,o/tree/%.o,$(notdir $(wildcard src/tree/*.cpp)))
+COMP_O_FILES   := $(patsubst %.cpp,o/compiler/%.o,$(notdir $(wildcard src/compiler/*.cpp)))
 
-O_FILES:= $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES)
+O_FILES:= $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES) $(COMP_O_FILES)
 
 DED_FLAGS := -Wshadow -Winit-self -Wredundant-decls -Wcast-align -Wundef -Wfloat-equal -Winline -Wunreachable-code -Wmissing-declarations -Wmissing-include-dirs -Wswitch-enum -Wswitch-default -Wmain -Wextra -Wall -g -pipe -fexceptions -Wcast-qual -Wconversion -Wempty-body -Wformat-security -Wformat=2 -Wignored-qualifiers -Wlogical-op -Wno-missing-field-initializers -Wpointer-arith -Wstack-usage=8192 -Wstrict-aliasing -Wtype-limits -Wwrite-strings -Werror=vla -D_DEBUG -D_EJUDGE_CLIENT_SIDE
-INCLUDE_FLAGS:= -I ./h -I ./h/processor -I ./h/stack -I ./h/assembler -I ./h/disassembler -I ./h/tree
-CFLAGS:= $(INCLUDE_FLAGS) -Wno-unused-parameter -Wno-unused-function
+INCLUDE_FLAGS:= -I ./h -I ./h/processor -I ./h/stack -I ./h/assembler -I ./h/disassembler -I ./h/tree -I ./h/compiler
+CFLAGS:= $(INCLUDE_FLAGS) -Wno-unused-parameter -Wno-unused-function # $(DED_FLAGS)
 
 exe/proc.exe: $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(TREE_O_FILES)
-	@$(CC) $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(TREE_O_FILES) -o exe/proc.exe
+	@$(CC)    $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(TREE_O_FILES) -o exe/proc.exe
 
-exe/asm.exe: $(COMMON_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES)
-	@$(CC) $(COMMON_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES) -o exe/asm.exe
+exe/comp.exe: $(COMMON_O_FILES) $(COMP_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES)
+	@$(CC)    $(COMMON_O_FILES) $(COMP_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES) -o exe/comp.exe
+
 
 include $(wildcard d/*.d)
 include $(wildcard d/*/*.d)

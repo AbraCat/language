@@ -15,7 +15,6 @@ int optcmp(struct Option* opt1, struct Option* opt2)
 struct Option* optByName(struct Option* opts, int n_opts, const char* sh_name)
 {
     int lft = -1, rgt = n_opts, mid = 0;
-
     while (rgt - lft > 1)
     {
         mid = (lft + rgt) / 2;
@@ -24,7 +23,6 @@ struct Option* optByName(struct Option* opts, int n_opts, const char* sh_name)
         else
             lft = mid;
     }
-
     return (strcmp(opts[rgt].sh_name, sh_name) == 0) ? opts + rgt : NULL;
 }
 
