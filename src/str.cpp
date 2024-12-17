@@ -1,10 +1,12 @@
 #include <ctype.h>
+#include <stdlib.h>
 
 #include <str.h>
 
 void skipTrailSpace(const char* str, int* str_pos, int* eof)
 {
     while (isspace(str[*str_pos])) ++*str_pos;
+    if (eof == NULL) return;
     if (str[*str_pos] == '\0') *eof = 1;
     else *eof = 0;
 }
@@ -15,10 +17,14 @@ void strlenToSpace(const char* str, int* len)
     while (!isspace(str[*len]) && str[*len] != '\0') ++*len;
 }
 
+#include <stdio.h>
+
 void strncpyToSpace(char* dest, const char* src, int count)
 {
-    for (int i = 0; i < count && !isspace(src[i]) && src[i] != '\0'; ++i)
+    int i = 0;
+    for (; i < count && !isspace(src[i]) && src[i] != '\0'; ++i)
         dest[i] = src[i];
+    dest[i] = '\0';
 }
 
 int strcmpToSpace(const char* lft, const char* rgt)
@@ -39,7 +45,7 @@ int nameCmp(const char* lft, const char* rgt, int* lft_len)
         ++lft;
         ++rgt;
     }
-    if (lft_len != 0) *lft_len = init_lft - lft; // != NULL
+    if (lft_len != NULL) *lft_len = init_lft - lft;
     return (isalnum(*lft) ? *lft : '\0') - (isalnum(*rgt) ? *rgt : '\0');
 }
 

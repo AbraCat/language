@@ -100,6 +100,8 @@ ErrEnum runDisasm(FILE* fin, FILE* fout)
             DISASM_CASE(RET)
             DISASM_CASE(DRAW)
             DISASM_CASE(SQRT)
+            DISASM_CASE(POW)
+            DISASM_CASE(SIZE)
 
             DISASM_CASE_ARG(JMP)
             DISASM_CASE_ARG(JB)

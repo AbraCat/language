@@ -102,3 +102,9 @@ void printDouble(FILE* fout, double num)
         fprintf(fout, "%d", (long long)num10pow % 10);
     }
 }
+
+void fputManyChars(FILE* fout, char chr, int cnt)
+{
+    for (int counter = 0; counter < cnt; ++counter)
+        fputc(chr, fout);
+}

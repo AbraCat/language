@@ -7,7 +7,7 @@
 
 #define stUpdateHash(st) ST_ON_HASH(stUpdateHashFn(st);)
 
-static const StackElem poison_val = 3452663, canary_val = 0xB3A61C;
+static const StackElem poison_val = 1, canary_val = 2;
 static const int capacity_increase = 2, capacity_decrease = 2, capacity_decrease_condition = 4;
 
 static int hashFn(char* arr, int size);
@@ -200,6 +200,7 @@ ErrEnum stPush(Stack* st, StackElem elem)
 
     if (st->size == st->capacity)
     {
+        return ERR_STACK_OVERFLOW;
         returnErr(resize(st, st->capacity == 0 ? 1 : st->capacity * capacity_increase));
     }
 
@@ -224,10 +225,10 @@ ErrEnum stPop(Stack* st, StackElem* elem)
         st->data[st->size] = poison_val;
     )
 
-    if (st->size <= st->capacity / capacity_decrease_condition)
-    {
-        returnErr(resize(st, st->capacity / capacity_decrease));
-    }
+    // if (st->size <= st->capacity / capacity_decrease_condition)
+    // {
+    //     returnErr(resize(st, st->capacity / capacity_decrease));
+    // }
 
     stUpdateHash(st);
     returnErr(stErr(st));

@@ -5,7 +5,7 @@
 
 #include <error.h>
 
-extern const int n_ops;
+extern const int n_ops, name_buf_size;
 const int small_buf_size = 100;
 
 enum NodeType
@@ -39,7 +39,7 @@ struct OpInfo
 union NodeVal
 {
     int num;
-    int var_id;
+    int var_id; // index in NameArr before syntax analysis, local var number after
     OpEnum op_code;
     const char* func_name;
 };
@@ -67,13 +67,13 @@ ErrEnum printNodeDot(FILE* fout, Node* node);
 ErrEnum treeMakeGraph(Node* tree);
 ErrEnum treeDump(Node* tree);
 
-void nodeWrite(FILE* fout, Node* node);
-ErrEnum treeWrite(Node* node, const char* expr_brackets_path);
-ErrEnum nodeRead(char* buf, int* buf_pos, Node* node, int buf_size);
-ErrEnum treeRead(Node** tree, const char* expr_brackets_path);
+void nodeWrite(FILE* fout, Node* node, int depth);
+void treeWrite(FILE* fout, Node* tree);
+ErrEnum nodeRead(char* buf, int* buf_pos, Node** node, int buf_size);
+ErrEnum treeRead(const char* file_name, Node** tree);
 
 ErrEnum nodeCopy(Node* src, Node** dest);
-
 ErrEnum connectLinear(Node* nodes, int n_nodes);
+bool treeCmp(Node* tree1, Node* tree2);
 
 #endif // TREE_H

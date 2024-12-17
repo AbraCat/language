@@ -8,18 +8,28 @@
 #include <error.h>
 #include <utils.h>
 
-static const int ram_size = 10;
+static const int ram_size_sqrt = 20, max_rec_depth = 50;
+
+static int intPow(int base, int power)
+{
+    myAssert(power >= 0);
+    if (power == 0) return 1;
+    int temp = intPow(base, power / 2);
+    if (power % 2 == 0) return temp * temp;
+    return temp * temp * base;
+}
 
 ErrEnum procCtor(Proc* prc)
 {
-    stCtor(&prc->st, 0);
-    stCtor(&prc->ret, 0);
+    stCtor(&prc->st, ram_size_sqrt * ram_size_sqrt);
+    stCtor(&prc->ret, max_rec_depth);
     prc->n_cmds = prc->ip = prc->cmd = prc->argt = prc->arg1 = prc->arg2 = 0;
     prc->code = NULL;
 
-    prc->ram = (int*)calloc(ram_size * ram_size * 2, sizeof(int));
-    if (prc->ram == NULL) return ERR_MEM;
-    initRam(prc);
+    prc->ram = prc->st.data;
+    // prc->ram = (int*)calloc(ram_size_sqrt * ram_size_sqrt * 2, sizeof(int));
+    // if (prc->ram == NULL) return ERR_MEM;
+    // initRam(prc);
 
     return ERR_OK;
 }
@@ -28,7 +38,7 @@ void procDtor(Proc* prc)
     stDtor(&prc->st);
     stDtor(&prc->ret);
     free(prc->code);
-    free(prc->ram);
+    // free(prc->ram);
 }
 
 ErrEnum getPopDestination(Proc* prc, int** dest, int write)
@@ -117,10 +127,12 @@ ErrEnum runProc(Proc* prc, FILE* fin, FILE* fout)
                 fprintf(fout, "%d\n", prc->arg1);
                 break;
 
-            #define CASE_ARITHM_OP(cmd, op)                           \
-                case CMD_ ## cmd:                                     \
-                    returnErr(stPop(&prc->st, &prc->arg1));             \
-                    returnErr(stPop(&prc->st, &prc->arg2));             \
+            #define CASE_ARITHM_OP(cmd, op)                              \
+                case CMD_ ## cmd:                                        \
+                    returnErr(stPop(&prc->st, &prc->arg1));              \
+                    returnErr(stPop(&prc->st, &prc->arg2));              \
+                    if (CMD_ ## cmd == CMD_DIV && prc->arg1 == 0)        \
+                        {printf("%d %d\n", prc->arg1, prc->arg2); return ERR_DIV_NULL;}                             \
                     returnErr(stPush(&prc->st, prc->arg2 op prc->arg1)); \
                     break;
 
@@ -130,10 +142,19 @@ ErrEnum runProc(Proc* prc, FILE* fin, FILE* fout)
             CASE_ARITHM_OP(DIV, /)
 
             case CMD_SQRT:                                     
-                returnErr(stPop(&prc->st, &prc->arg1));                 
+                returnErr(stPop(&prc->st, &prc->arg1));     
+                if (prc->arg1 < 0) return ERR_SQRT_NEGATIVE;            
                 returnErr(stPush(&prc->st, (int)sqrt(prc->arg1)));
                 break;
-
+            case CMD_POW:
+                returnErr(stPop(&prc->st, &prc->arg1));
+                returnErr(stPop(&prc->st, &prc->arg2));
+                if (prc->arg1 < 0) return ERR_POW_NEGATIVE;
+                returnErr(stPush(&prc->st, intPow(prc->arg2, prc->arg1)));
+                break;
+            case CMD_SIZE:
+                returnErr(stPush(&prc->st, prc->st.size));
+                break;
             case CMD_DUMP:
                 prcDump(fout, prc);
                 break;
@@ -199,13 +220,12 @@ void initRam(Proc* prc)
     myAssert(prc != NULL);
 
     int adr = 0;
-    for (int i = 0; i < ram_size; ++i)
+    for (int i = 0; i < ram_size_sqrt; ++i)
     {
-        for (int j = 0; j < ram_size; ++j)
+        for (int j = 0; j < ram_size_sqrt; ++j)
         {
-            adr = 2 * (i * ram_size + j);
-            prc->ram[adr] = '.';
-            prc->ram[adr + 1] = 9;
+            adr = (i * ram_size_sqrt + j);
+            prc->ram[adr] = 0;
         }
     }
     return;
@@ -216,12 +236,12 @@ ErrEnum drawRam(FILE* fout, Proc* prc)
     myAssert(prc != NULL && fout != NULL);
 
     int adr = 0;
-    for (int i = 0; i < ram_size; ++i)
+    for (int i = 0; i < ram_size_sqrt; ++i)
     {
-        for (int j = 0; j < ram_size; ++j)
+        for (int j = 0; j < ram_size_sqrt; ++j)
         {
-            adr = 2 * (i * ram_size + j);
-            fprintf(fout, "\x1b[3%dm%c%c\x1b[39m", prc->ram[adr + 1], prc->ram[adr], prc->ram[adr]);
+            adr = i * ram_size_sqrt + j;
+            fprintf(fout, "%d ", prc->ram[adr]);
         }
         putc('\n', fout);
     }

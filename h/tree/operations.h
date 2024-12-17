@@ -1,11 +1,11 @@
 // OP_CODEGEN(name, n_operands, value, priority, text)
 
-OP_CODEGEN(LE,  2, (arg1 <  arg2),  1, "les")
-OP_CODEGEN(LEQ, 2, (arg1 <= arg2),  1, "leq")
-OP_CODEGEN(GE,  2, (arg1 >  arg2),  1, "gre")
-OP_CODEGEN(GEQ, 2, (arg1 >= arg2),  1, "geq")
-OP_CODEGEN(EQ,  2, (arg1 == arg2),  1, "eq")
-OP_CODEGEN(NEQ, 2, (arg1 != arg2),  1, "neq")
+OP_CODEGEN(B,  2, (arg1 <  arg2),  1, "les")
+OP_CODEGEN(BE, 2, (arg1 <= arg2),  1, "leq")
+OP_CODEGEN(A,  2, (arg1 >  arg2),  1, "gre")
+OP_CODEGEN(AE, 2, (arg1 >= arg2),  1, "geq")
+OP_CODEGEN(E,  2, (arg1 == arg2),  1, "eq")
+OP_CODEGEN(NE, 2, (arg1 != arg2),  1, "neq")
 
 OP_CODEGEN(ADD, 2, (arg1 + arg2),   2, "+")
 OP_CODEGEN(SUB, 2, (arg1 - arg2),   2, "-")

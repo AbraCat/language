@@ -14,6 +14,7 @@ enum NameType
 struct Name
 {
     char* name_str;
+    int var_id; // for vars
     int n_args; // for func
     NameType type;
 };

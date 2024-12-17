@@ -7,10 +7,11 @@
 /*
 grammar:
 
-G = F_DECL{,F_DECL}*              +
-F_DECL = func NAME(VAR{,VAR})BODY ++
-BODY = (S{,S}*)                   ++
-S = VAR_DECL|IF|WHILE|RET|A|E1
+G = F_DECL{,F_DECL}*
+F_DECL = func NAME(VAR{,VAR})FUNC_BODY
+FUNC_BODY = (VAR_DECL|S{,VAR_DECL|S}*)
+BODY = (S{,S}*)
+S = IF|WHILE|RET|A|E1
 VAR_DECL = var VAR
 A = VAR=E1
 IF = if(E1)(BODY)(BODY)
@@ -22,7 +23,7 @@ E2 = E3{[+-]E3}*
 E3 = E4{[*(slash)]E4}*
 E4 = P{^P}*
 P = (E0)|NUM|FUNC|VAR
-FUNC = NAME(E1{,E1}*)             ++
+FUNC = NAME(E1{,E1}*)
 NUM = {-}[0-9]+{.[0-9]+}
 NAME = [a]{[a1]}*
 
@@ -55,12 +56,9 @@ struct Parser
     Node* root;
     NameArr name_arr;
 
-    // ind in name_arr of function currently being defined. 
-    // var decls store this id in Name and are undeclared at the end of definition
-    // -1 when not in function definition
-    int cur_func; 
+    int var_cnt; // number of vars in current function
 };
 
-ErrEnum runFrontend(const char* fin_name, Node** tree);
+ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free);
 
 #endif // FRONTEND_H

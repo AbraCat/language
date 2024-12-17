@@ -10,8 +10,7 @@
 #include <utils.h>
 #include <str.h>
 
-const int n_cmds = 21, max_label_len = 20, buffer_size = 30;
-
+const int n_cmds = 23, max_label_len = 50, buffer_size = 50;
 
 #define CMD_ARRAY_CASE(name, type) {CMD_ ## name, CMDT_ ## type, #name, sizeof #name - 1},
 Cmd cmd_array[n_cmds] = 
@@ -37,6 +36,8 @@ Cmd cmd_array[n_cmds] =
     CMD_ARRAY_CASE(RET, NO_ARG)
     CMD_ARRAY_CASE(DRAW, NO_ARG)
     CMD_ARRAY_CASE(SQRT, NO_ARG)
+    CMD_ARRAY_CASE(POW, NO_ARG)
+    CMD_ARRAY_CASE(SIZE, NO_ARG)
 };
 #undef CMD_ARRAY_CASE
 
@@ -308,7 +309,7 @@ void labelCtor(Label* label)
 
 ErrEnum labelArrayCtor(LabelArray* la)
 {
-    la->max_labels = 10;
+    la->max_labels = 20;
     la->n_labels = 0;
 
     la->labels = (Label*)calloc(la->max_labels, sizeof(Label));
@@ -352,6 +353,8 @@ void getLabelAdr(LabelArray* la, char* name, int* adr)
 
 ErrEnum fixup(int* code, LabelArray* ft, LabelArray* la)
 {
+    myAssert(code != NULL && ft != NULL && la != NULL);
+
     int adr = -1;
     for (int fixup_n = 0; fixup_n < ft->n_labels; ++fixup_n)
     {
