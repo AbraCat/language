@@ -59,6 +59,6 @@ struct Parser
     int var_cnt; // number of vars in current function
 };
 
-ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free);
+ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, const char** prog_text);
 
 #endif // FRONTEND_H

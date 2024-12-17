@@ -1,6 +1,7 @@
 
 
 #include <backend.h>
+#include <str.h>
 
 static ErrEnum compileCommaSeparated(FILE* fout, Node* node, ErrEnum (*compile)(FILE*, Node*));
 static ErrEnum compileFuncDecl(FILE* fout, Node* node);
@@ -49,7 +50,8 @@ static ErrEnum compileFuncDecl(FILE* fout, Node* node)
     myAssert(fout != NULL && node != NULL && node->type == TYPE_OP && node->val.op_code == OP_FUNC);
 
     myAssert(node->lft != NULL && node->lft->type == TYPE_FUNC && node->lft->val.func_name != NULL);
-    fprintf(fout, "%s:\n", node->lft->val.func_name);
+    printName(fout, node->lft->val.func_name);
+    fputs(":\n", fout);
 
     n_vars = 0;
     myAssert(node->rgt != NULL && node->rgt->type == TYPE_OP && node->rgt->val.op_code == OP_OPEN_BRACKET);
@@ -191,7 +193,9 @@ static ErrEnum compileE(FILE* fout, Node* node)
     if (node->type == TYPE_FUNC)
     {
         if (node->lft != NULL) returnErr(compileCommaSeparated(fout, node->lft, compileE));
-        fprintf(fout, "CALL %s:\n", node->val.func_name);
+        fputs("CALL ", fout);
+        printName(fout, node->val.func_name);
+        fputs(":\n", fout);
         return ERR_OK;
     }
     myAssert(node->type == TYPE_OP);

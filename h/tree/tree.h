@@ -70,10 +70,10 @@ ErrEnum treeDump(Node* tree);
 void nodeWrite(FILE* fout, Node* node, int depth);
 void treeWrite(FILE* fout, Node* tree);
 ErrEnum nodeRead(char* buf, int* buf_pos, Node** node, int buf_size);
-ErrEnum treeRead(const char* file_name, Node** tree);
+ErrEnum treeRead(const char* file_name, Node** tree, const char** buffer);
 
 ErrEnum nodeCopy(Node* src, Node** dest);
 ErrEnum connectLinear(Node* nodes, int n_nodes);
-bool treeCmp(Node* tree1, Node* tree2);
+bool treeEqual(Node* tree1, Node* tree2);
 
 #endif // TREE_H

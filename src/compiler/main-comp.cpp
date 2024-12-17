@@ -10,7 +10,27 @@
 #include <tree.h>
 #include <backend.h>
 
-const char *std_prog_name = "./txt/prog.txt", *std_asm_name = "txt/asm.txt", *std_code_name = "txt/code.txt";
+const char *std_prog_name = "./txt/prog.txt", *std_tree_name = "./txt/tree.txt", 
+           *std_asm_name = "./txt/asm.txt",   *std_code_name = "./txt/code.txt";
+
+ErrEnum checkTreeReadWrite(Node *tree)
+{
+    FILE *tree_file = fopen(std_tree_name, "w");
+    treeWrite(tree_file, tree);
+    fclose(tree_file);
+
+    Node *tree_copy = NULL;
+    const char* copy_buf = NULL;
+    returnErr(treeRead(std_tree_name, &tree_copy, &copy_buf));
+
+    returnErr(treeDump(tree));
+    returnErr(treeDump(tree_copy));
+    if (!treeEqual(tree, tree_copy)) return ERR_IO;
+
+    free((void*)copy_buf);
+    nodeDtor(tree_copy);
+    return ERR_OK;
+}
 
 int main(int argc, const char* argv[])
 {
@@ -26,11 +46,16 @@ int main(int argc, const char* argv[])
     if (code_name == NULL) code_name = std_code_name;
 
     Node *tree = NULL, *to_free = NULL;
-    handleErr(runFrontend(prog_name, &tree, &to_free));
+    const char* prog_text = NULL;
+    handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
+
+    // handleErr(checkTreeReadWrite(tree));
 
     FILE *asm_file = fopen(asm_name, "w");
     handleErr(runBackend(tree, asm_file));
     fclose(asm_file);
+    free((void*)prog_text);
+    free(to_free);
 
     asm_file = fopen(asm_name, "r");
     FILE *code_file = fopen(code_name, "wb");

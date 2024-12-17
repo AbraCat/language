@@ -66,3 +66,12 @@ int nameLen(const char* str)
     while (isalnum(str[len])) ++len;
     return len;
 }
+
+void printName(FILE* fout, const char* name)
+{
+    while (isalnum(*name))
+    {
+        fputc(*name, fout);
+        ++name;
+    }
+}

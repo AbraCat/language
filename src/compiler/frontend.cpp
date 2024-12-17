@@ -45,15 +45,15 @@ static ErrEnum getVarInExpr(Parser* pars, Node** node); // unused
 static ErrEnum getCommaSeparated(Parser* pars, Node** node,                   int* n_nodes, ErrEnum (*rule)(Parser*, Node**));
 static ErrEnum getInBrackets    (Parser* pars, Node** node, bool allow_empty, int* n_nodes, ErrEnum (*rule)(Parser*, Node**));
 
-ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free)
+ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, const char** prog_text)
 {
     myAssert(tree != NULL && *tree == NULL && fin_name != NULL && to_free != NULL && *to_free == NULL);
 
     Parser pars = {};
     returnErr(nameArrCtor(&pars.name_arr));
-    returnErr(tokenize(fin_name, &pars.s, &pars.n_nodes, &pars.name_arr));
+    returnErr(tokenize(fin_name, &pars.s, &pars.n_nodes, &pars.name_arr, prog_text));
 
-    // debug
+    // debug:
     // connectLinear(pars.s, pars.n_nodes);
     // returnErr(treeDump(pars.s));
     // return ERR_OK;

@@ -13,7 +13,7 @@ enum NameType
 
 struct Name
 {
-    char* name_str;
+    const char* name_str;
     int var_id; // for vars
     int n_args; // for func
     NameType type;
@@ -25,7 +25,7 @@ struct NameArr
     int n_names, max_names;
 };
 
-ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* name_arr);
+ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* name_arr, const char** prog_text);
 ErrEnum insertName(const char* name_str, NameArr* name_arr, int* name_id);
 
 ErrEnum nameArrCtor(NameArr* name_arr);

@@ -52,7 +52,6 @@ ErrEnum nodeCtor(Node** node, NodeType type, NodeVal val, Node* parent, Node* lf
 void nodeDtor(Node* node)
 {
     if (node == NULL) return;
-    // if (node->type == TYPE_FUNC) free((char*)(node->val.func_name));
     nodeDtor(node->lft);
     nodeDtor(node->rgt);
     free(node);
@@ -90,14 +89,14 @@ ErrEnum nodeVerify(Node* node)
     return ERR_OK;
 }
 
-bool treeCmp(Node* tree1, Node* tree2)
+bool treeEqual(Node* tree1, Node* tree2)
 {
     if (tree1 == NULL && tree2 == NULL) return 1;
     if (tree1 == NULL || tree2 == NULL) return 0;
     if (tree1->type != tree2->type) return 0;
     if (tree1->type == TYPE_FUNC && nameCmp(tree1->val.func_name, tree2->val.func_name, NULL) != 0) return 0;
     if (tree1->type != TYPE_FUNC && tree1->val.num != tree2->val.num) return 0;
-    return treeCmp(tree1->lft, tree2->lft) && treeCmp(tree1->rgt, tree2->rgt);
+    return treeEqual(tree1->lft, tree2->lft) && treeEqual(tree1->rgt, tree2->rgt);
 }
 
 ErrEnum getOpByCode(OpEnum op_code, OpInfo** ans)
@@ -162,7 +161,8 @@ void nodeWrite(FILE* fout, Node* node, int depth)
             fprintf(fout, "%d\n", node->val.var_id);
             break;
         case TYPE_FUNC:
-            fprintf(fout, "%s\n", node->val.func_name);
+            printName(fout, node->val.func_name);
+            fputc('\n', fout);
             break;
         case TYPE_OP:
             fprintf(fout, "%d\n", (int)(node->val.op_code));
@@ -210,10 +210,11 @@ ErrEnum nodeRead(char* buf, int* buf_pos, Node** node, int buf_size)
     sscanf(cur_buf, " %d%n", &((*node)->type), &pos_incr);
     INCR_BUF_POS(pos_incr);
 
-    if ((*node)->type == TYPE_FUNC) 
+    if ((*node)->type == TYPE_FUNC)
     {
-        (*node)->val.func_name = (char*)calloc(name_buf_size, sizeof(char));
-        sscanf(cur_buf, " %s%n", (*node)->val.func_name, &pos_incr);
+        skipTrailSpace(buf, buf_pos, NULL);
+        (*node)->val.func_name = cur_buf;
+        sscanf(cur_buf, "%*s%n", &pos_incr);
     }
     else sscanf(cur_buf, " %d%n", &((*node)->val.num), &pos_incr);
     INCR_BUF_POS(pos_incr);
@@ -229,13 +230,15 @@ ErrEnum nodeRead(char* buf, int* buf_pos, Node** node, int buf_size)
     return ERR_OK;
 }
 
-ErrEnum treeRead(const char* file_name, Node** tree)
+
+ErrEnum treeRead(const char* file_name, Node** tree, const char** buffer)
 {
     myAssert(file_name != NULL && tree != NULL && *tree == NULL);
 
     int buf_size = 0, buf_pos = 0;
     char *buf = NULL;
     readFile(file_name, (void**)(&buf), &buf_size);
+    if (buffer != NULL) *buffer = buf;
     
     returnErr(nodeRead(buf, &buf_pos, tree, buf_size));
     return ERR_OK;
@@ -259,7 +262,8 @@ ErrEnum printNodeDot(FILE* fout, Node* node)
             fprintf(fout, "VAR | %d", node->val.var_id);
             break;
         case TYPE_FUNC:
-            fprintf(fout, "FUNC | %s", node->val.func_name);
+            fputs("FUNC | ", fout);
+            printName(fout, node->val.func_name);
             break;
         case TYPE_NUM:
             fprintf(fout, "NUM | %d", node->val.num);

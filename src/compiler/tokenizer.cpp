@@ -7,7 +7,7 @@
 
 const int max_names = 50;
 
-ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* name_arr)
+ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* name_arr, const char** prog_text)
 {
     #define CUR_NODE ((*node_arr)[cur_node])
     myAssert(fin_name != NULL && node_arr != NULL && *node_arr == NULL && n_nodes != NULL && name_arr != NULL);
@@ -15,6 +15,7 @@ ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* n
     char* buf = NULL;
     int buf_size = 0;
     returnErr(readFile(fin_name, (void**)&buf, &buf_size));
+    if (prog_text != NULL) *prog_text = buf;
 
     int buf_pos = 0, eof = 0, pos_incr = 0, cur_node = 0;
     *node_arr = (Node*)calloc(buf_size, sizeof(Node));
@@ -53,19 +54,13 @@ ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* n
         CUR_NODE.type = TYPE_VAR;
         returnErr(insertName(buf + buf_pos, name_arr, &(CUR_NODE.val.var_id)));
         int name_len = nameLen(buf + buf_pos);
-        if (name_len == 0)
-        {
-            free(buf);
-            free(node_arr);
-            return ERR_INVAL_TOKEN;
-        }
+        if (name_len == 0) return ERR_INVAL_TOKEN;
         buf_pos += name_len;
     }
     CUR_NODE.type = TYPE_OP;
     CUR_NODE.val.op_code = OP_END;
     ++cur_node;
     
-    free(buf);
     *n_nodes = cur_node;
     return ERR_OK;
 }
@@ -75,8 +70,10 @@ ErrEnum nameArrCtor(NameArr* name_arr)
     myAssert(name_arr != NULL);
     name_arr->max_names = max_names;
     name_arr->n_names = 0;
+
     name_arr->names = (Name*)calloc(max_names, sizeof(Name));
     if (name_arr->names == NULL) return ERR_MEM;
+
     return ERR_OK;
 }
 
@@ -98,10 +95,7 @@ ErrEnum insertName(const char* name_str, NameArr* name_arr, int* name_id)
         }
     if (name_arr->n_names >= max_names) return ERR_TOO_MANY_NAMES;
 
-    name_arr->names[name_arr->n_names].name_str = (char*)calloc(name_buf_size, sizeof(char));
-    if (name_arr->names[name_arr->n_names].name_str == NULL) return ERR_MEM;
-    nameCpy(name_arr->names[name_arr->n_names].name_str, name_str);
-
+    name_arr->names[name_arr->n_names].name_str = name_str;
     name_arr->names[name_arr->n_names].type = NAME_UNDECL;
     name_arr->names[name_arr->n_names].n_args = -1;
 
