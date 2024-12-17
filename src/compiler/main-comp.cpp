@@ -10,6 +10,8 @@
 #include <tree.h>
 #include <backend.h>
 
+#include <antifrontend.h>
+
 const char *std_prog_name = "./txt/prog.txt", *std_tree_name = "./txt/tree.txt", 
            *std_asm_name = "./txt/asm.txt",   *std_code_name = "./txt/code.txt";
 
@@ -49,6 +51,7 @@ int main(int argc, const char* argv[])
     const char* prog_text = NULL;
     handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
 
+    handleErr(runAntiFrontend(tree, "./txt/prog1.txt")); return 0;
     // handleErr(checkTreeReadWrite(tree));
 
     FILE *asm_file = fopen(asm_name, "w");

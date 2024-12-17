@@ -32,7 +32,7 @@ ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* n
         skipTrailSpace(buf, &buf_pos, &eof);
         if (buf[buf_pos] == '\0') break;
 
-        // doesn't work when operator is prefix of another operator
+        // doesn't work when operator is prefix of another operator or var/func name
         #define OP_CODEGEN(name, n_operands, value, priority, text) \
         if (strncmp(text, buf + buf_pos, sizeof text - 1) == 0)     \
         {                                                           \

@@ -32,7 +32,7 @@ static ErrEnum compileCommaSeparated(FILE* fout, Node* node, ErrEnum (*compile)(
     myAssert(fout != NULL && node != NULL);
 
     Node* cur_node = node;
-    while (cur_node->type == TYPE_OP && cur_node->val.op_code == OP_COMMA) cur_node = cur_node->lft;
+    while (cur_node != NULL && cur_node->type == TYPE_OP && cur_node->val.op_code == OP_COMMA) cur_node = cur_node->lft;
     returnErr(compile(fout, cur_node));
     if (cur_node == node) return ERR_OK;
 

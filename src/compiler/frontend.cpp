@@ -62,7 +62,7 @@ ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, const cha
     if (pars.synt_err.err) syntaxErr(&pars.synt_err);
 
     // returnErr(nodeVerify(pars.root));
-    // returnErr(treeDump(pars.root));
+    returnErr(treeDump(pars.root));
 
     *tree = pars.root;
     *to_free = pars.s;
