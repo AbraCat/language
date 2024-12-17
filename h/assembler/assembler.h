@@ -55,7 +55,6 @@ void asmDtor(Asm* ase);
 ErrEnum runAsm(FILE* fin, FILE* fout);
 
 
-void labelCtor(Label* label);
 ErrEnum labelArrayCtor(LabelArray* la);
 void labelArrayDtor(LabelArray* la);
 

@@ -25,16 +25,16 @@ int main(int argc, const char* argv[])
 
     handleErr(runFrontend("./txt/prog.txt", &tree, &to_free));
 
-    FILE *tree_file = fopen("./txt/tree.txt", "w");
-    if (tree_file == NULL) handleErr(ERR_OPEN_FILE);
-    treeWrite(tree_file, tree);
-    fclose(tree_file);
+    // FILE *tree_file = fopen("./txt/tree.txt", "w");
+    // if (tree_file == NULL) handleErr(ERR_OPEN_FILE);
+    // treeWrite(tree_file, tree);
+    // fclose(tree_file);
 
-    Node *tree_copy = NULL;
-    returnErr(treeRead("./txt/tree.txt", &tree_copy));
-    returnErr(treeDump(tree_copy));
-    myAssert(treeCmp(tree, tree_copy) && !treeCmp(tree->lft, tree_copy));
-    return 0;
+    // Node *tree_copy = NULL;
+    // returnErr(treeRead("./txt/tree.txt", &tree_copy));
+    // returnErr(treeDump(tree_copy));
+    // myAssert(treeCmp(tree, tree_copy) && !treeCmp(tree->lft, tree_copy));
+    // return 0;
 
     handleErr(runBackend(tree, asm_file));
     free(to_free);

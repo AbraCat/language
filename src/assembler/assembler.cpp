@@ -301,12 +301,6 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
     return ERR_OK;
 }
 
-void labelCtor(Label* label)
-{
-    label->adr = -1;
-    label->name = NULL;
-}
-
 ErrEnum labelArrayCtor(LabelArray* la)
 {
     la->max_labels = 20;
@@ -318,7 +312,10 @@ ErrEnum labelArrayCtor(LabelArray* la)
     if (la->name_buf == NULL) return ERR_MEM;
 
     for (int i = 0; i < la->max_labels; ++i)
-        labelCtor(la->labels + i);
+    {
+        la->labels[i].adr = -1;
+        la->labels[i].name = la->name_buf + i * max_label_len;
+    }
 
     return ERR_OK;
 }

@@ -60,9 +60,10 @@ ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free)
 
     returnErr(getG(&pars, &pars.root));
     if (pars.synt_err.err) syntaxErr(&pars.synt_err);
-    returnErr(nodeVerify(pars.root));
 
-    returnErr(treeDump(pars.root));
+    // returnErr(nodeVerify(pars.root));
+    // returnErr(treeDump(pars.root));
+
     *tree = pars.root;
     *to_free = pars.s;
 
@@ -336,7 +337,6 @@ static ErrEnum getAssign(Parser* pars, Node** node)
     if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("VAR NAME");
     Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
     if (name_struct->type != NAME_VAR) SYNT_ERR("NO VAR WITH SUCH NAME");
-    CUR_NODE.val.var_id = name_struct->var_id;
     Node* var_node = &CUR_NODE;
     INCR_P;
 
@@ -346,6 +346,7 @@ static ErrEnum getAssign(Parser* pars, Node** node)
 
     returnErr(getE1(pars, &assign_node->rgt));
     RET_IF_SYNT_ERR;
+    var_node->val.var_id = name_struct->var_id;
     assign_node->lft = var_node;
     var_node->parent = assign_node;
     assign_node->rgt->parent = assign_node;
@@ -444,7 +445,7 @@ ErrEnum getP(Parser* pars, Node** node)
         *node = func_node;
         NO_SYNT_ERR_RET;
     }
-    if (name_struct->type != NAME_VAR) SYNT_ERR("NO VAR WITH SUCH NAME");
+    if (name_struct->type != NAME_VAR) {printf("aaa %s %d\n", name_struct->name_str, (int)(name_struct->type)); SYNT_ERR("NO VAR WITH SUCH NAME");}
     CUR_NODE.val.var_id = name_struct->var_id;
     *node = &CUR_NODE;
     INCR_P;

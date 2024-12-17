@@ -22,7 +22,7 @@ void strlenToSpace(const char* str, int* len)
 void strncpyToSpace(char* dest, const char* src, int count)
 {
     int i = 0;
-    for (; i < count && !isspace(src[i]) && src[i] != '\0'; ++i)
+    for (; i < count - 1 && !isspace(src[i]) && src[i] != '\0'; ++i)
         dest[i] = src[i];
     dest[i] = '\0';
 }
@@ -34,7 +34,8 @@ int strcmpToSpace(const char* lft, const char* rgt)
         ++lft;
         ++rgt;
     }
-    return *lft - *rgt;
+    return (isspace(*lft) || *lft == '\0' ? '\0' : *lft) - 
+           (isspace(*rgt) || *rgt == '\0' ? '\0' : *rgt);
 }
 
 int nameCmp(const char* lft, const char* rgt, int* lft_len)
