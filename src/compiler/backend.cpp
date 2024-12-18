@@ -5,7 +5,6 @@
 
 static ErrEnum compileCommaSeparated(FILE* fout, Node* node, ErrEnum (*compile)(FILE*, Node*));
 static ErrEnum compileFuncDecl(FILE* fout, Node* node);
-static ErrEnum compileParamList(FILE* fout, Node* node); // not used
 static ErrEnum checkFuncParam(FILE* fout, Node* node);
 static ErrEnum compileBody(FILE* fout, Node* node);
 static ErrEnum compileS(FILE* fout, Node* node);
@@ -16,13 +15,16 @@ static ErrEnum compileE(FILE* fout, Node* node);
 
 const int st_size = 400;
 int label_cnt = 0, n_vars = 0;
-const char trash_reg[] = "AX", ret_val_reg[] = "BX", frame_adr_reg[] = "CX", st2_pos_reg[] = "DX";
+const char trash_reg[] = "AX", ret_val_reg[] = "BX", frame_adr_reg[] = "CX";
 
 ErrEnum runBackend(Node* tree, FILE* fout)
 {
     myAssert(tree != NULL && fout != NULL);
-    fprintf(fout, "PUSH 0\nPOP %s\nPUSH 0\nPOP %s\nCALL main:\nHLT\ninput:\nIN\nRET\noutput:\nOUT\nPUSH 0\nRET\nsqrt:\nSQRT\nRET\n", 
-    st2_pos_reg, frame_adr_reg);
+    fprintf(fout, "PUSH 0\nCALL main:\nHLT\n"
+    "input:\nPOP %s\nIN\nRET\n"
+    "output:\nOUT\nPOP %s\nPUSH 0\nRET\n"
+    "sqrt:\nSQRT\nPOP %s\nPOP %s\nPUSH %s\nRET\n",
+    frame_adr_reg, frame_adr_reg, ret_val_reg, frame_adr_reg, ret_val_reg);
 
     return compileCommaSeparated(fout, tree, compileFuncDecl);
 }
@@ -56,13 +58,12 @@ static ErrEnum compileFuncDecl(FILE* fout, Node* node)
     n_vars = 0;
     myAssert(node->rgt != NULL && node->rgt->type == TYPE_OP && node->rgt->val.op_code == OP_OPEN_BRACKET);
     if (node->rgt->lft != NULL) returnErr(compileCommaSeparated(fout, node->rgt->lft, checkFuncParam));
-    fprintf(fout, "PUSH %s\nPUSH 1\nSUB\nPOP %s\n" "SIZE\nPUSH %d\nSUB\nPOP %s\nPUSH %s\nPOP [%s+%d]\n", 
-    st2_pos_reg, st2_pos_reg, n_vars, frame_adr_reg, frame_adr_reg, st2_pos_reg, st_size);
+    fprintf(fout, "SIZE\nPUSH %d\nSUB\nPOP %s\n", n_vars, frame_adr_reg);
     returnErr(compileBody(fout, node->rgt->rgt));
 
     for (int cnt = 0; cnt < n_vars; ++cnt)
         fprintf(fout, "POP %s\n", trash_reg);
-    fprintf(fout, "PUSH 1\nPUSH %s\nADD\nPOP %s\nPUSH 0\nRET\n", st2_pos_reg, st2_pos_reg);
+    fprintf(fout, "POP %s\nPUSH 0\nRET\n", frame_adr_reg);
     return ERR_OK;
 }
 
@@ -72,24 +73,6 @@ static ErrEnum checkFuncParam(FILE* fout, Node* node)
     myAssert(node->type == TYPE_VAR);
     myAssert(node->val.var_id == n_vars);
     ++n_vars;
-    return ERR_OK;
-}
-
-static ErrEnum compileParamList(FILE* fout, Node* node)
-{
-    // not used
-    myAssert(fout != NULL && node != NULL);
-
-    Node* cur_node = node;
-    while (cur_node->type == TYPE_OP && cur_node->val.op_code == OP_COMMA)
-    {
-        myAssert(cur_node->rgt != NULL && cur_node->rgt->type == TYPE_VAR);
-        fprintf(fout, "POP [%d]\n", cur_node->rgt->val.var_id);
-        cur_node = cur_node->lft;
-    }
-    myAssert(cur_node != NULL && cur_node->type == TYPE_VAR);
-    fprintf(fout, "POP [%d]\n", cur_node->val.var_id);
-
     return ERR_OK;
 }
 
@@ -124,8 +107,7 @@ static ErrEnum compileS(FILE* fout, Node* node)
             fprintf(fout, "POP %s\n", ret_val_reg);
             for (int ind = 0; ind < n_vars; ++ind)
                 fprintf(fout, "POP %s\n", trash_reg);
-            fprintf(fout, "PUSH %s\nPUSH 1\nADD\nPOP %s\n" "PUSH [%s+%d]\nPOP %s\n" "PUSH %s\nRET\n", 
-            st2_pos_reg, st2_pos_reg, st2_pos_reg, st_size, frame_adr_reg, ret_val_reg);
+            fprintf(fout, "POP%s\nPUSH %s\nRET\n", frame_adr_reg, ret_val_reg);
             return ERR_OK;
         case OP_ASSIGN:
             myAssert(node->lft != NULL && node->lft->type == TYPE_VAR && node->rgt != NULL);
@@ -192,6 +174,7 @@ static ErrEnum compileE(FILE* fout, Node* node)
     }
     if (node->type == TYPE_FUNC)
     {
+        fprintf(fout, "PUSH %s\n", frame_adr_reg);
         if (node->lft != NULL) returnErr(compileCommaSeparated(fout, node->lft, compileE));
         fputs("CALL ", fout);
         printName(fout, node->val.func_name);

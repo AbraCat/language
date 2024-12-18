@@ -51,7 +51,7 @@ int main(int argc, const char* argv[])
     const char* prog_text = NULL;
     handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
 
-    handleErr(runAntiFrontend(tree, "./txt/prog1.txt")); return 0;
+    // handleErr(runAntiFrontend(tree, "./txt/prog1.txt")); return 0;
     // handleErr(checkTreeReadWrite(tree));
 
     FILE *asm_file = fopen(asm_name, "w");

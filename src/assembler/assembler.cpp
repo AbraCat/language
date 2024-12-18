@@ -303,7 +303,7 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
 
 ErrEnum labelArrayCtor(LabelArray* la)
 {
-    la->max_labels = 20;
+    la->max_labels = 50;
     la->n_labels = 0;
 
     la->labels = (Label*)calloc(la->max_labels, sizeof(Label));
