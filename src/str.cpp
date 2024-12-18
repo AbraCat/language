@@ -38,6 +38,17 @@ int strcmpToSpace(const char* lft, const char* rgt)
            (isspace(*rgt) || *rgt == '\0' ? '\0' : *rgt);
 }
 
+int strcmpToBracket(const char* lft, const char* rgt)
+{
+    while (*lft != '(' && *lft != ')' && *lft != '\0' && *lft == *rgt)
+    {
+        ++lft;
+        ++rgt;
+    }
+    return (*lft == '(' || *lft == ')' ? '\0' : *lft) - 
+           (*rgt == '(' || *rgt == ')' ? '\0' : *rgt);
+}
+
 int nameCmp(const char* lft, const char* rgt, int* lft_len)
 {
     const char* init_lft = lft;
@@ -74,4 +85,10 @@ void printName(FILE* fout, const char* name)
         fputc(*name, fout);
         ++name;
     }
+}
+
+void fputManyChars(FILE* fout, char chr, int cnt)
+{
+    for (int counter = 0; counter < cnt; ++counter)
+        fputc(chr, fout);
 }

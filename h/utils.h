@@ -19,9 +19,7 @@ ErrEnum callocErr(void **ptr, size_t count, size_t size);
 ErrEnum readFile(const char* file_name, void** array, int* size);
 
 int isZero(double num);
-int strcmpToBracket(const char* lft, const char* rgt);
 ErrEnum strToPosInt(const char* str, int* ans);
 void printDouble(FILE* fout, double num);
-void fputManyChars(FILE* fout, char chr, int cnt);
 
 #endif // UTILS_H

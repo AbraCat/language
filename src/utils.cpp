@@ -52,17 +52,6 @@ int isZero(double num)
     return fabs(num) < EPS;
 }
 
-int strcmpToBracket(const char* lft, const char* rgt)
-{
-    while (*lft != '(' && *lft != ')' && *lft != '\0' && *lft == *rgt)
-    {
-        ++lft;
-        ++rgt;
-    }
-    return (*lft == '(' || *lft == ')' ? '\0' : *lft) - 
-           (*rgt == '(' || *rgt == ')' ? '\0' : *rgt);
-}
-
 ErrEnum strToPosInt(const char* str, int* ans)
 {
     const int base = 10;
@@ -101,10 +90,4 @@ void printDouble(FILE* fout, double num)
         num10pow = num * ten_pow;
         fprintf(fout, "%d", (long long)num10pow % 10);
     }
-}
-
-void fputManyChars(FILE* fout, char chr, int cnt)
-{
-    for (int counter = 0; counter < cnt; ++counter)
-        fputc(chr, fout);
 }

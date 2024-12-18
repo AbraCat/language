@@ -14,6 +14,9 @@ static ErrEnum decompE1(FILE* fout, Node* node);
 static ErrEnum decompE(FILE* fout, Node* node, int rule_num);
 static ErrEnum decompVar(FILE* fout, Node* node);
 
+const int tab_len = 4;
+int n_ident = 0;
+
 ErrEnum runAntiFrontend(Node* tree, const char* fout_name)
 {
     myAssert(fout_name != NULL);
@@ -55,9 +58,13 @@ static ErrEnum decompInBrackets(FILE* fout, Node* node, ErrEnum (*rule)(FILE*, N
 
 static ErrEnum decompInBracketsNewline(FILE* fout, Node* node, ErrEnum (*rule)(FILE*, Node*))
 {
-    fputs("\n(\n", fout);
+    fputc('\n', fout);
+    fputManyChars(fout, ' ', tab_len * (n_ident - 1));
+    fputs("(\n", fout);
     if (node != NULL) returnErr(decompCommaSeparated(fout, node, '\n', rule));
-    fputs("\n)", fout);
+    fputc('\n', fout);
+    fputManyChars(fout, ' ', tab_len * (n_ident - 1));
+    fputc(')', fout);
     return ERR_OK;
 }
 
@@ -67,16 +74,20 @@ static ErrEnum decompFuncDecl(FILE* fout, Node* node)
     node->lft == NULL || node->lft->type != TYPE_FUNC || 
     node->rgt == NULL || node->rgt->type != TYPE_OP || node->rgt->val.op_code != OP_OPEN_BRACKET) return ERR_INVAL_TREE;
 
+    myAssert(n_ident == 0);
+    ++n_ident;
     fputs("func ", fout);
     printName(fout, node->lft->val.func_name);
     returnErr(decompInBrackets(fout, node->rgt->lft, decompVar));
     returnErr(decompInBracketsNewline(fout, node->rgt->rgt, decompS));
+    --n_ident;
     return ERR_OK;
 }
 
 static ErrEnum decompS(FILE* fout, Node* node)
 {
     if (node == NULL) return ERR_INVAL_TREE;
+    fputManyChars(fout, ' ', tab_len * n_ident);
     if (node->type == TYPE_OP) switch (node->val.op_code)
     {
         case OP_VAR:
@@ -85,6 +96,7 @@ static ErrEnum decompS(FILE* fout, Node* node)
             return ERR_OK;
         case OP_IF:
             if (node->lft == NULL || node->rgt == NULL) return ERR_INVAL_TREE;
+            ++n_ident;
             fputs("if (", fout);
             returnErr(decompE1(fout, node->lft));
             fputc(')', fout);
@@ -94,13 +106,16 @@ static ErrEnum decompS(FILE* fout, Node* node)
                 returnErr(decompInBracketsNewline(fout, node->rgt->rgt, decompS));
             }
             else returnErr(decompInBracketsNewline(fout, node->rgt, decompS));
+            --n_ident;
             return ERR_OK;
         case OP_WHILE:
             if (node->lft == NULL || node->rgt == NULL) return ERR_INVAL_TREE;
+            ++n_ident;
             fputs("while (", fout);
             returnErr(decompE1(fout, node->lft));
             fputc(')', fout);
             returnErr(decompInBracketsNewline(fout, node->rgt, decompS));
+            --n_ident;
             return ERR_OK;
         case OP_RET:
             fputs("return ", fout);

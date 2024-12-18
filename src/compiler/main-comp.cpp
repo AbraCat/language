@@ -34,6 +34,18 @@ ErrEnum checkTreeReadWrite(Node *tree)
     return ERR_OK;
 }
 
+ErrEnum checkAntiFrontend(Node* tree)
+{
+    returnErr(runAntiFrontend(tree, std_prog_name));
+    Node *tree_copy = NULL, *to_free_copy = NULL;
+    const char *prog_text_copy = NULL;
+    returnErr(runFrontend(std_prog_name, &tree_copy, &to_free_copy, &prog_text_copy));
+    if (!treeEqual(tree, tree_copy)) return ERR_INVAL_TREE;
+    free(to_free_copy);
+    free((void*)prog_text_copy);
+    return ERR_OK;
+}
+
 int main(int argc, const char* argv[])
 {
     const int n_opts = 3;
@@ -51,7 +63,7 @@ int main(int argc, const char* argv[])
     const char* prog_text = NULL;
     handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
 
-    // handleErr(runAntiFrontend(tree, "./txt/prog1.txt")); return 0;
+    handleErr(checkAntiFrontend(tree)); return 0;
     // handleErr(checkTreeReadWrite(tree));
 
     FILE *asm_file = fopen(asm_name, "w");

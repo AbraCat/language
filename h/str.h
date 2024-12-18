@@ -5,13 +5,15 @@
 
 void strlenToSpace(const char* str, int* len);
 void strncpyToSpace(char* dest, const char* src, int count);
-void skipTrailSpace(const char* str, int* str_pos, int* eof);
-
 int strcmpToSpace(const char* lft, const char* rgt);
+int strcmpToBracket(const char* lft, const char* rgt);
 
 int nameCmp(const char* lft, const char* rgt, int* lft_len);
 void nameCpy(char* dest, const char* src);
 int nameLen(const char* str);
 void printName(FILE* fout, const char* name);
+
+void skipTrailSpace(const char* str, int* str_pos, int* eof);
+void fputManyChars(FILE* fout, char chr, int cnt);
 
 #endif // STR_H
