@@ -10,7 +10,7 @@ int dump_cnt = 0;
 extern const int name_buf_size = 30;
 static const int buffer_size = 300;
 
-#define OP_CODEGEN(name, n_operands, value, priority, text) {OP_ ## name, text, sizeof text - 1, priority},
+#define OP_CODEGEN(name, n_operands, value, priority, text) {OP_ ## name, #name, text, sizeof text - 1, priority},
 static OpInfo op_info_arr[] = {
     #include <operations.h>
 };
@@ -119,7 +119,7 @@ ErrEnum getOpByStr(const char* op_str, OpInfo** ans)
 
     for (int ind = 0; ind < n_ops; ++ind)
     {
-        if (strcmpToBracket(op_str, op_info_arr[ind].op_str) == 0)
+        if (strncmp(op_str, op_info_arr[ind].op_str, op_info_arr[ind].op_str_len) == 0)
         {
             *ans = op_info_arr + ind;
             return ERR_OK;

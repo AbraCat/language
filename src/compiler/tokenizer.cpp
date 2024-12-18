@@ -32,17 +32,14 @@ ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* n
         skipTrailSpace(buf, &buf_pos, &eof);
         if (buf[buf_pos] == '\0') break;
 
-        // doesn't work when operator is prefix of another operator or var/func name
-        #define OP_CODEGEN(name, n_operands, value, priority, text) \
-        if (strncmp(text, buf + buf_pos, sizeof text - 1) == 0)     \
-        {                                                           \
-            CUR_NODE.type = TYPE_OP;                                \
-            CUR_NODE.val.op_code = OP_ ## name;                     \
-            buf_pos += sizeof text - 1;                             \
-            continue;                                               \
+        OpInfo *op_info = NULL;
+        if (getOpByStr(buf + buf_pos, &op_info) == ERR_OK)
+        {
+            CUR_NODE.type = TYPE_OP;                                
+            CUR_NODE.val.op_code = op_info->op_code;                     
+            buf_pos += op_info->op_str_len;                             
+            continue;  
         }
-        #include <operations.h>
-        #undef OP_CODEGEN
 
         if (sscanf(buf + buf_pos, "%d%n", &(CUR_NODE.val.num), &pos_incr) == 1)
         {
@@ -93,7 +90,7 @@ ErrEnum insertName(const char* name_str, NameArr* name_arr, int* name_id)
             if (name_id != NULL) *name_id = ind;
             return ERR_OK;
         }
-    if (name_arr->n_names >= max_names) return ERR_TOO_MANY_NAMES; // REALLOC
+    if (name_arr->n_names >= max_names) return ERR_TOO_MANY_NAMES;
 
     name_arr->names[name_arr->n_names].name_str = name_str;
     name_arr->names[name_arr->n_names].type = NAME_UNDECL;

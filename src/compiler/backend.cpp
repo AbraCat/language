@@ -13,7 +13,7 @@ static ErrEnum compileIf(FILE* fout, Node* node);
 static ErrEnum compileWhile(FILE* fout, Node* node);
 static ErrEnum compileE(FILE* fout, Node* node);
 
-const int st_size = 400;
+const int st_size = 400, cmp_op_priority = 1;
 int label_cnt = 0, n_vars = 0;
 const char trash_reg[] = "AX", ret_val_reg[] = "BX", frame_adr_reg[] = "CX";
 
@@ -185,33 +185,17 @@ static ErrEnum compileE(FILE* fout, Node* node)
 
     returnErr(compileE(fout, node->lft));
     returnErr(compileE(fout, node->rgt));
-    
-    // replace with array or codegen switchcase
-    // remove the magical number of 2
-    #define OP_CODEGEN(name, n_operands, value, priority, text) \
-    if (priority >= 2 && node->val.op_code == OP_ ## name)      \
-    {                                                           \
-        fputs(#name "\n", fout);                                \
-        return ERR_OK;                                          \
-    }
-    #include <operations.h>
-    #undef OP_CODEGEN
 
-    int label_num = label_cnt++;
-
-    #define OP_CODEGEN(name, n_operands, value, priority, text) \
-    case OP_ ## name:                                           \
-        myAssert(priority == 1);                                \
-        fprintf(fout, "J" #name);                               \
-        break;
-    switch (node->val.op_code)
+    OpInfo *op_info = NULL;
+    returnErr(getOpByCode(node->val.op_code, &op_info));
+    if (op_info->priority > cmp_op_priority)
     {
-        #include <operations.h>
-        default: myAssert("Invalid op_code" && 0);
+        fprintf(fout, "%s\n", op_info->op_code_str);
+        return ERR_OK;
     }
-    #undef OP_CODEGEN
-
-    fprintf(fout, " cmp_success_%d:\nPUSH 0\nJMP cmp_end_%d:\ncmp_success_%d:\nPUSH 1\ncmp_end_%d:\n", 
-    label_num, label_num, label_num, label_num);
+    myAssert(op_info->priority == cmp_op_priority);
+    int label_num = label_cnt++;
+    fprintf(fout, "J%s cmp_success_%d:\nPUSH 0\nJMP cmp_end_%d:\ncmp_success_%d:\nPUSH 1\ncmp_end_%d:\n", 
+    op_info->op_code_str, label_num, label_num, label_num, label_num);
     return ERR_OK;
 }

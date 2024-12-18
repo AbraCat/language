@@ -368,16 +368,11 @@ ErrEnum getE(Parser* pars, Node** node, int rule_num)
     else returnErr(getE(pars, node, rule_num + 1));
     RET_IF_SYNT_ERR;
 
-    while (1)
+    while (CUR_NODE.type == TYPE_OP)
     {
-        OpEnum op_code = OP_ADD;
-
-        // maybe make this array indexed by CUR_NODE.val.op_code
-        #define OP_CODEGEN(name, n_operands, value, priority, text) \
-            if (priority == rule_num && CUR_NODE.type == TYPE_OP && CUR_NODE.val.op_code == OP_ ## name) op_code = OP_ ## name; else
-        #include <operations.h>
-        break;
-        #undef OP_CODEGEN
+        OpInfo *op_info = NULL;
+        returnErr(getOpByCode(CUR_NODE.val.op_code, &op_info));
+        if (op_info->priority != rule_num || op_info->op_code != CUR_NODE.val.op_code) break;
 
         Node *lft = *node, *op = &CUR_NODE, *rgt = NULL;
         INCR_P;

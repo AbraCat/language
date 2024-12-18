@@ -32,7 +32,7 @@ enum NodeChild
 struct OpInfo
 {
     OpEnum op_code;
-    const char *op_str;
+    const char *op_code_str, *op_str;
     const int op_str_len, priority;
 };
 
