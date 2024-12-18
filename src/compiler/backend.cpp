@@ -1,7 +1,6 @@
-
-
 #include <backend.h>
 #include <str.h>
+#include <standartlib.h>
 
 static ErrEnum compileCommaSeparated(FILE* fout, Node* node, ErrEnum (*compile)(FILE*, Node*));
 static ErrEnum compileFuncDecl(FILE* fout, Node* node);
@@ -20,12 +19,7 @@ const char trash_reg[] = "AX", ret_val_reg[] = "BX", frame_adr_reg[] = "CX";
 ErrEnum runBackend(Node* tree, FILE* fout)
 {
     myAssert(tree != NULL && fout != NULL);
-    fprintf(fout, "PUSH 0\nCALL main:\nHLT\n"
-    "input:\nPOP %s\nIN\nRET\n"
-    "output:\nOUT\nPOP %s\nPUSH 0\nRET\n"
-    "sqrt:\nSQRT\nPOP %s\nPOP %s\nPUSH %s\nRET\n",
-    frame_adr_reg, frame_adr_reg, ret_val_reg, frame_adr_reg, ret_val_reg);
-
+    printStdLib(fout, trash_reg, ret_val_reg, frame_adr_reg);
     return compileCommaSeparated(fout, tree, compileFuncDecl);
 }
 

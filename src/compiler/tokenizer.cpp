@@ -20,13 +20,6 @@ ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* n
     int buf_pos = 0, eof = 0, pos_incr = 0, cur_node = 0;
     *node_arr = (Node*)calloc(buf_size, sizeof(Node));
 
-    returnErr(insertName("input", name_arr, NULL));
-    name_arr->names[0].type = NAME_FUNC;
-    name_arr->names[0].n_args = 0;
-    returnErr(insertName("output", name_arr, NULL));
-    name_arr->names[1].type = NAME_FUNC;
-    name_arr->names[1].n_args = 1;
-
     for (; cur_node < buf_size; ++cur_node)
     {
         skipTrailSpace(buf, &buf_pos, &eof);
