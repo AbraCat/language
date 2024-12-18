@@ -8,12 +8,47 @@
 
 #include <frontend.h>
 #include <tree.h>
+#include <middlend.h>
 #include <backend.h>
 
 #include <antifrontend.h>
 
 const char *std_prog_name = "./txt/prog.txt", *std_tree_name = "./txt/tree.txt", 
            *std_asm_name = "./txt/asm.txt",   *std_code_name = "./txt/code.txt";
+
+ErrEnum checkTreeReadWrite(Node *tree);
+ErrEnum checkAntiFrontend(Node* tree);
+
+int main(int argc, const char* argv[])
+{
+    const int n_opts = 3;
+    Option opts[] = {{"-i", "--input"}, {"-a", "--asm"}, {"-o", "--output"}};
+    handleErr(parseOpts(argc, argv, opts, n_opts));
+
+    const char *prog_name = optByName(opts, n_opts, "-i")->str_arg, 
+                *asm_name = optByName(opts, n_opts, "-a")->str_arg,
+               *code_name = optByName(opts, n_opts, "-o")->str_arg;
+    if (prog_name == NULL) prog_name = std_prog_name;
+    if (asm_name == NULL) asm_name = std_asm_name;
+    if (code_name == NULL) code_name = std_code_name;
+
+    Node *tree = NULL, *to_free = NULL;
+    const char* prog_text = NULL;
+    handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
+    handleErr(runMiddleEnd(tree));
+
+    FILE *asm_file = fopen(asm_name, "w");
+    handleErr(runBackend(tree, asm_file));
+    fclose(asm_file);
+    free((void*)prog_text);
+    free(to_free);
+
+    asm_file = fopen(asm_name, "r");
+    FILE *code_file = fopen(code_name, "wb");
+    handleErr(runAsm(asm_file, code_file));
+    fclose(asm_file);
+    fclose(code_file);
+}
 
 ErrEnum checkTreeReadWrite(Node *tree)
 {
@@ -44,37 +79,4 @@ ErrEnum checkAntiFrontend(Node* tree)
     free(to_free_copy);
     free((void*)prog_text_copy);
     return ERR_OK;
-}
-
-int main(int argc, const char* argv[])
-{
-    const int n_opts = 3;
-    Option opts[] = {{"-i", "--input"}, {"-a", "--asm"}, {"-o", "--output"}};
-    handleErr(parseOpts(argc, argv, opts, n_opts));
-
-    const char *prog_name = optByName(opts, n_opts, "-i")->str_arg, 
-                *asm_name = optByName(opts, n_opts, "-a")->str_arg,
-               *code_name = optByName(opts, n_opts, "-o")->str_arg;
-    if (prog_name == NULL) prog_name = std_prog_name;
-    if (asm_name == NULL) asm_name = std_asm_name;
-    if (code_name == NULL) code_name = std_code_name;
-
-    Node *tree = NULL, *to_free = NULL;
-    const char* prog_text = NULL;
-    handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
-
-    handleErr(checkAntiFrontend(tree)); return 0;
-    // handleErr(checkTreeReadWrite(tree));
-
-    FILE *asm_file = fopen(asm_name, "w");
-    handleErr(runBackend(tree, asm_file));
-    fclose(asm_file);
-    free((void*)prog_text);
-    free(to_free);
-
-    asm_file = fopen(asm_name, "r");
-    FILE *code_file = fopen(code_name, "wb");
-    handleErr(runAsm(asm_file, code_file));
-    fclose(asm_file);
-    fclose(code_file);
 }

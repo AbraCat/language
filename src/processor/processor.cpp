@@ -10,15 +10,6 @@
 
 static const int ram_size_sqrt = 20, max_rec_depth = 50;
 
-static int intPow(int base, int power)
-{
-    myAssert(power >= 0);
-    if (power == 0) return 1;
-    int temp = intPow(base, power / 2);
-    if (power % 2 == 0) return temp * temp;
-    return temp * temp * base;
-}
-
 ErrEnum procCtor(Proc* prc)
 {
     stCtor(&prc->st, ram_size_sqrt * ram_size_sqrt);

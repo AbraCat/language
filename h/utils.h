@@ -21,5 +21,6 @@ ErrEnum readFile(const char* file_name, void** array, int* size);
 int isZero(double num);
 ErrEnum strToPosInt(const char* str, int* ans);
 void printDouble(FILE* fout, double num);
+int intPow(int base, int power);
 
 #endif // UTILS_H

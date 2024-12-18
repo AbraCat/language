@@ -91,3 +91,12 @@ void printDouble(FILE* fout, double num)
         fprintf(fout, "%d", (long long)num10pow % 10);
     }
 }
+
+int intPow(int base, int power)
+{
+    myAssert(power >= 0);
+    if (power == 0) return 1;
+    int temp = intPow(base, power / 2);
+    if (power % 2 == 0) return temp * temp;
+    return temp * temp * base;
+}
