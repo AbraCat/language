@@ -371,6 +371,8 @@ ErrEnum getE(Parser* pars, Node** node, int rule_num)
     while (1)
     {
         OpEnum op_code = OP_ADD;
+
+        // maybe make this array indexed by CUR_NODE.val.op_code
         #define OP_CODEGEN(name, n_operands, value, priority, text) \
             if (priority == rule_num && CUR_NODE.type == TYPE_OP && CUR_NODE.val.op_code == OP_ ## name) op_code = OP_ ## name; else
         #include <operations.h>

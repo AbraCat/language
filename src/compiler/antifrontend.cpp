@@ -131,7 +131,7 @@ static ErrEnum decompS(FILE* fout, Node* node)
     return decompE1(fout, node);
 }
 
-static ErrEnum decompVar(FILE* fout, Node* node)
+static ErrEnum decompVar(FILE* fout, Node* node) // this function shoud be used
 {
     if (node == NULL || node->type != TYPE_VAR) return ERR_INVAL_TREE;
     fprintf(fout, "v%d", node->val.var_id);

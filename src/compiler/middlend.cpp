@@ -1,23 +1,64 @@
-
-
 #include <middlend.h>
 #include <utils.h>
 
 ErrEnum runMiddleEnd(Node *node)
 {
-    if (node == NULL) return ERR_OK;
-    OpInfo *op_info = NULL;
-    // printf("middlend(): %p\n", node);
-    if (node->type == TYPE_OP)
-        returnErr(getOpByCode(node->val.op_code, &op_info));
-    if (op_info == NULL || op_info->priority == 0)
-    {
-        returnErr(runMiddleEnd(node->lft));
-        returnErr(runMiddleEnd(node->rgt));
-        return ERR_OK;
-    }
     simplify(node);
     return ERR_OK;
+}
+
+void simplify(Node* node)
+{
+    if (node == NULL) return;
+    simplify(node->lft);
+    simplify(node->rgt);
+    if (node->type != TYPE_OP) return;
+
+    OpInfo *op_info = NULL;
+    getOpByCode(node->val.op_code, &op_info);
+    if (op_info->priority == 0) return;
+    
+    if (node->lft != NULL && node->lft->type == TYPE_NUM && node->rgt != NULL && node->rgt->type == TYPE_NUM)
+    {
+        int val = 0;
+        evaluate(node, &val);
+        node->type = TYPE_NUM;
+        node->val.num = val;
+        // nodeDtor(node->lft);
+        // nodeDtor(node->rgt);
+        node->lft = NULL;
+        node->rgt = NULL;
+        return;
+    }
+
+    if (node->val.op_code == OP_ADD)
+    {
+        if (simplifyCase(node, LFT_NODE, 0, 0, 1)) return;
+        if (simplifyCase(node, RGT_NODE, 0, 0, 1)) return;
+    }
+    else if (node->val.op_code == OP_SUB)
+    {
+        if (simplifyCase(node, LFT_NODE, 0, 0, -1)) return;
+        if (simplifyCase(node, RGT_NODE, 0, 0, 1)) return;
+    }
+    else if (node->val.op_code == OP_MUL)
+    {
+        if (simplifyCase(node, LFT_NODE, 0, 1, 0)) return;
+        if (simplifyCase(node, RGT_NODE, 0, 1, 0)) return;
+        if (simplifyCase(node, LFT_NODE, 1, 0, 1)) return;
+        if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
+    }
+    else if (node->val.op_code == OP_DIV)
+    {
+        if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
+    }
+    else if (node->val.op_code == OP_POW)
+    {
+        if (simplifyCase(node, RGT_NODE, 0, 1, 1)) return;
+        if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
+        if (simplifyCase(node, LFT_NODE, 0, 1, 0)) return;
+        if (simplifyCase(node, LFT_NODE, 1, 1, 1)) return;
+    }
 }
 
 int simplifyCase(Node* node, NodeChild crit_child, int crit_val, bool replace_with_num, int replacement)
@@ -70,60 +111,9 @@ int simplifyCase(Node* node, NodeChild crit_child, int crit_val, bool replace_wi
     return 0;
 }
 
-void simplify(Node* node)
-{
-    myAssert(node != NULL);
-    // printf("simplify(): %p\n", node);
-
-    if (node->type != TYPE_OP) return;
-    simplify(node->lft);
-    if (node->rgt != NULL) simplify(node->rgt);
-    
-    if (node->lft->type == TYPE_NUM && node->rgt != NULL && node->rgt->type == TYPE_NUM)
-    {
-        evaluate(node, &(node->val.num));
-        node->type = TYPE_NUM;
-        nodeDtor(node->lft);
-        nodeDtor(node->rgt);
-        node->lft = NULL;
-        node->rgt = NULL;
-        return;
-    }
-
-    if (node->val.op_code == OP_ADD)
-    {
-        if (simplifyCase(node, LFT_NODE, 0, 0, 1)) return;
-        if (simplifyCase(node, RGT_NODE, 0, 0, 1)) return;
-    }
-    else if (node->val.op_code == OP_SUB)
-    {
-        if (simplifyCase(node, LFT_NODE, 0, 0, -1)) return;
-        if (simplifyCase(node, RGT_NODE, 0, 0, 1)) return;
-    }
-    else if (node->val.op_code == OP_MUL)
-    {
-        if (simplifyCase(node, LFT_NODE, 0, 1, 0)) return;
-        if (simplifyCase(node, RGT_NODE, 0, 1, 0)) return;
-        if (simplifyCase(node, LFT_NODE, 1, 0, 1)) return;
-        if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
-    }
-    else if (node->val.op_code == OP_DIV)
-    {
-        if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
-    }
-    else if (node->val.op_code == OP_POW)
-    {
-        if (simplifyCase(node, RGT_NODE, 0, 1, 1)) return;
-        if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
-        if (simplifyCase(node, LFT_NODE, 0, 1, 0)) return;
-        if (simplifyCase(node, LFT_NODE, 1, 1, 1)) return;
-    }
-}
-
 void evaluate(Node* node, int* ans)
 {
     myAssert(node != NULL);
-    // printf("eval(): %p\n", node);
 
     if (node->type == TYPE_NUM)
     {

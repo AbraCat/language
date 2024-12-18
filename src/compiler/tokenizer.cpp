@@ -93,7 +93,7 @@ ErrEnum insertName(const char* name_str, NameArr* name_arr, int* name_id)
             if (name_id != NULL) *name_id = ind;
             return ERR_OK;
         }
-    if (name_arr->n_names >= max_names) return ERR_TOO_MANY_NAMES;
+    if (name_arr->n_names >= max_names) return ERR_TOO_MANY_NAMES; // REALLOC
 
     name_arr->names[name_arr->n_names].name_str = name_str;
     name_arr->names[name_arr->n_names].type = NAME_UNDECL;

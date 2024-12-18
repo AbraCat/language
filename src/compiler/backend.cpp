@@ -186,6 +186,8 @@ static ErrEnum compileE(FILE* fout, Node* node)
     returnErr(compileE(fout, node->lft));
     returnErr(compileE(fout, node->rgt));
     
+    // replace with array or codegen switchcase
+    // remove the magical number of 2
     #define OP_CODEGEN(name, n_operands, value, priority, text) \
     if (priority >= 2 && node->val.op_code == OP_ ## name)      \
     {                                                           \
