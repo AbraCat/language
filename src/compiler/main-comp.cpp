@@ -35,6 +35,7 @@ int main(int argc, const char* argv[])
     Node *tree = NULL, *to_free = NULL;
     const char* prog_text = NULL;
     handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
+    return checkTreeReadWrite(tree);
     handleErr(runMiddleEnd(tree));
 
     FILE *asm_file = fopen(asm_name, "w");
@@ -58,9 +59,8 @@ ErrEnum checkTreeReadWrite(Node *tree)
 
     Node *tree_copy = NULL;
     const char* copy_buf = NULL;
-    returnErr(treeRead(std_tree_name, &tree_copy, &copy_buf));
-
     returnErr(treeDump(tree));
+    returnErr(treeRead(std_tree_name, &tree_copy, &copy_buf));
     returnErr(treeDump(tree_copy));
     if (!treeEqual(tree, tree_copy)) return ERR_IO;
 

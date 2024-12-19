@@ -16,7 +16,16 @@ static OpInfo op_info_arr[] = {
 };
 #undef OP_CODEGEN
 
-extern const int n_ops = sizeof op_info_arr / sizeof(OpInfo);
+#define NODE_TYPE_CASE(type) {TYPE_ ## type, #type, sizeof #type - 1},
+static NodeTypeInfo type_info_arr[] = {
+    NODE_TYPE_CASE(OP)
+    NODE_TYPE_CASE(VAR)
+    NODE_TYPE_CASE(FUNC)
+    NODE_TYPE_CASE(NUM)
+};
+#undef NODE_TYPE_CASE
+
+extern const int n_ops = sizeof op_info_arr / sizeof(OpInfo), n_types = sizeof type_info_arr / sizeof(NodeTypeInfo);
 
 ErrEnum nodeCtor(Node** node, NodeType type, NodeVal val, Node* parent, Node* lft, Node* rgt)
 {
@@ -129,6 +138,29 @@ ErrEnum getOpByStr(const char* op_str, OpInfo** ans)
     return ERR_INVAL_OP_STR;
 }
 
+ErrEnum getTypeByCode(NodeType type, NodeTypeInfo** ans)
+{
+    myAssert(ans != NULL);
+    int ind = (int)type;
+    if (ind < 0 || ind >= n_types) return ERR_INVAL_NODE_TYPE;
+    *ans = type_info_arr + ind;
+    return ERR_OK;
+}
+
+ErrEnum getTypeByStr(const char* type_str, NodeTypeInfo** ans)
+{
+    myAssert(type_str != NULL && ans != NULL);
+    for (int ind = 0; ind < n_ops; ++ind)
+    {
+        if (strncmp(type_str, type_info_arr[ind].type_str, type_info_arr[ind].type_str_len) == 0)
+        {
+            *ans = type_info_arr + ind;
+            return ERR_OK;
+        }
+    }
+    return ERR_INVAL_OP_STR;
+}
+
 void treeWrite(FILE* fout, Node* tree)
 {
     nodeWrite(fout, tree, 0);
@@ -147,9 +179,9 @@ void nodeWrite(FILE* fout, Node* node, int depth)
     fputs("{\n", fout);
     fputManyChars(fout, ' ', 4 * (depth + 1));
 
-    #define NODE_WRITE_TYPE_CASE(type) case TYPE_ ## type: fputs(#type "\n", fout); break;
-    fprintf(fout, "%d\n", (int)(node->type));
-    #undef NODE_WRITE_TYPE_CASE
+    NodeTypeInfo *type_info = NULL;
+    getTypeByCode(node->type, &type_info);
+    fprintf(fout, "%s\n", type_info->type_str);
 
     fputManyChars(fout, ' ', 4 * (depth + 1));
     switch (node->type)
@@ -165,8 +197,12 @@ void nodeWrite(FILE* fout, Node* node, int depth)
             fputc('\n', fout);
             break;
         case TYPE_OP:
-            fprintf(fout, "%d\n", (int)(node->val.op_code));
+        {
+            OpInfo *op_info = NULL;
+            getOpByCode(node->val.op_code, &op_info);
+            fprintf(fout, "%s\n", op_info->op_str);
             break;
+        }
         default:
             fputs("INVAL_TYPE\n", fout);
             break;
@@ -207,16 +243,32 @@ ErrEnum nodeRead(char* buf, int* buf_pos, Node** node, int buf_size)
 
     returnErr(nodeCtor(node, TYPE_NUM, {.num = 0}, NULL, NULL, NULL));
     scanfSpaceChar("{");
-    sscanf(cur_buf, " %d%n", &((*node)->type), &pos_incr);
-    INCR_BUF_POS(pos_incr);
 
-    if ((*node)->type == TYPE_FUNC)
+    skipTrailSpace(buf, buf_pos, NULL);
+    NodeTypeInfo *type_info = NULL;
+    returnErr(getTypeByStr(cur_buf, &type_info));
+    (*node)->type = type_info->type;
+    INCR_BUF_POS(type_info->type_str_len);
+
+    skipTrailSpace(buf, buf_pos, NULL);
+    switch((*node)->type)
     {
-        skipTrailSpace(buf, buf_pos, NULL);
-        (*node)->val.func_name = cur_buf;
-        sscanf(cur_buf, "%*s%n", &pos_incr);
+        case TYPE_FUNC:
+            (*node)->val.func_name = cur_buf;
+            sscanf(cur_buf, "%*s%n", &pos_incr);
+            break;
+        case TYPE_OP:
+        {
+            OpInfo *op_info = NULL;
+            returnErr(getOpByStr(cur_buf, &op_info));
+            (*node)->val.op_code = op_info->op_code;
+            pos_incr = op_info->op_str_len;
+            break;
+        }
+        default:
+            sscanf(cur_buf, "%d%n", &((*node)->val.num), &pos_incr);
+            break;
     }
-    else sscanf(cur_buf, " %d%n", &((*node)->val.num), &pos_incr);
     INCR_BUF_POS(pos_incr);
 
     returnErr(nodeRead(buf, buf_pos, &((*node)->lft), buf_size));

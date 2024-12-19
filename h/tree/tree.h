@@ -5,7 +5,7 @@
 
 #include <error.h>
 
-extern const int n_ops, name_buf_size;
+extern const int n_ops, n_types, name_buf_size;
 const int small_buf_size = 100;
 
 enum NodeType
@@ -27,6 +27,13 @@ enum NodeChild
 {
     LFT_NODE,
     RGT_NODE
+};
+
+struct NodeTypeInfo
+{
+    NodeType type;
+    const char *type_str;
+    const int type_str_len;
 };
 
 struct OpInfo
@@ -62,6 +69,8 @@ ErrEnum nodeVerify(Node* node);
 
 ErrEnum getOpByCode(OpEnum op_code, OpInfo** ans);
 ErrEnum getOpByStr(const char* op_str, OpInfo** ans);
+ErrEnum getTypeByCode(NodeType type, NodeTypeInfo** ans);
+ErrEnum getTypeByStr(const char* type_str, NodeTypeInfo** ans);
 
 ErrEnum printNodeDot(FILE* fout, Node* node);
 ErrEnum treeMakeGraph(Node* tree);
