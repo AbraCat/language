@@ -4,14 +4,13 @@
 #include <error.h>
 #include <colors.h>
 
-// generate enum automatically
-ErrDescr err_arr[] = {{ERR_OK, "No error"}, 
+static ErrDescr err_arr[] = {
+    #define ERR_CODEGEN(code) {ERR_ ## code, #code},
+    #include <error-codegen.h>
+    #undef ERR_CODEGEN
+};
 
-{ERR_MEM, "Couldn't allocate memory"},
-{ERR_OPEN_FILE, "Couldn't open file"},
-{ERR_FILE, "File error"}};
-
-const int n_errs = (sizeof err_arr) / sizeof(ErrDescr);
+extern const int n_errs = (sizeof err_arr) / sizeof(ErrDescr);
 
 void myAssertFn(int expr, const char* str_expr, const char* file, int line, const char* function)
 {
@@ -22,31 +21,28 @@ void myAssertFn(int expr, const char* str_expr, const char* file, int line, cons
     exit(expr);
 }
 
-void getErrDescr(ErrEnum num, const char** descr)
+void getErrDescr(ErrEnum code, const char** descr)
 {
-    for (int i = 0; i < n_errs; ++i)
+    myAssert(descr != NULL);
+
+    int ind = (int)code;
+    if (ind < 0 || ind >= n_errs)
     {
-        if (err_arr[i].num == num)
-        {
-            *descr = err_arr[i].descr;
-            return;
-        }
+        *descr = NULL;
+        return;
     }
-    *descr = NULL;
+    *descr = err_arr[ind].str_code;
 }
 
-void handleErrFn(ErrEnum num, const char* file, int line, const char* function)
+void handleErrFn(ErrEnum code, const char* file, int line, const char* function)
 {
-    if (num == ERR_OK)
-        return;
+    if (code == ERR_OK) return;
 
     const char* descr = NULL;
-    getErrDescr(num, &descr);
+    getErrDescr(code, &descr);
 
-    if (descr == NULL)
-        printf("%sUnknown error (%d) at %s:%d (%s)%s\n", RED_STR, (int)num, file, line, function, DEFAULT_STR);
-    else
-        printf("%sError: %s at %s:%d (%s)%s\n", RED_STR, descr, file, line, function, DEFAULT_STR);
-
-    exit(num);
+    if (descr == NULL) printf("%sUnknown error (%d) at %s:%d (%s)%s\n", RED_STR, (int)code, file, line, function, DEFAULT_STR);
+    else printf("%sError: %s at %s:%d (%s)%s\n", RED_STR, descr, file, line, function, DEFAULT_STR);
+    
+    exit(code);
 }
