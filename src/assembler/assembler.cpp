@@ -64,22 +64,6 @@ ErrEnum getCmdIndex(const char* cmd_name, int* index)
     return ERR_OK;
 }
 
-void clearComments(char* str)
-{
-    const char comment_start = ';';
-
-    int clearing = 0;
-    for (; *str != '\0'; ++str)
-    {
-        if (*str == comment_start)
-            clearing = 1;
-        else if (*str == '\n')
-            clearing = 0;
-        if (clearing)
-            *str = ' ';
-    }
-}
-
 ErrEnum asmCtor(Asm* ase)
 {
     qsort(cmd_array, n_cmds, sizeof(Cmd), cmdCmp);
@@ -254,8 +238,7 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
     if (ase.prog_text == NULL) return ERR_MEM;
     fread(ase.prog_text, sizeof(char), str_code_size, fin);
 
-    clearComments(ase.prog_text);
-    
+    clearComments(ase.prog_text, ';');
     while (1)
     {
         skipTrailSpace(ase.prog_text, &ase.prog_text_pos, &eof);

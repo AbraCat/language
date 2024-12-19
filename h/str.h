@@ -15,5 +15,6 @@ void printName(FILE* fout, const char* name);
 
 void skipTrailSpace(const char* str, int* str_pos, int* eof);
 void fputManyChars(FILE* fout, char chr, int cnt);
+void clearComments(char* str, const char comment_start);
 
 #endif // STR_H

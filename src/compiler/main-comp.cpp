@@ -35,7 +35,6 @@ int main(int argc, const char* argv[])
     Node *tree = NULL, *to_free = NULL;
     const char* prog_text = NULL;
     handleErr(runFrontend(prog_name, &tree, &to_free, &prog_text));
-    return checkTreeReadWrite(tree);
     handleErr(runMiddleEnd(tree));
 
     FILE *asm_file = fopen(asm_name, "w");

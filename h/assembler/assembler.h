@@ -45,15 +45,12 @@ struct Asm
 
 ErrEnum getCmdIndex(const char* cmd_name, int* index);
 
-void clearComments(char* str);
-
 void getRegNum(char* str_name, int* num);
 ErrEnum getArg(Asm*);
 
 ErrEnum asmCtor(Asm* ase);
 void asmDtor(Asm* ase);
 ErrEnum runAsm(FILE* fin, FILE* fout);
-
 
 ErrEnum labelArrayCtor(LabelArray* la);
 void labelArrayDtor(LabelArray* la);

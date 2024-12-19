@@ -92,3 +92,17 @@ void fputManyChars(FILE* fout, char chr, int cnt)
     for (int counter = 0; counter < cnt; ++counter)
         fputc(chr, fout);
 }
+
+void clearComments(char* str, const char comment_start)
+{
+    bool clearing = 0;
+    for (; *str != '\0'; ++str)
+    {
+        if (*str == comment_start)
+            clearing = 1;
+        else if (*str == '\n')
+            clearing = 0;
+        if (clearing)
+            *str = ' ';
+    }
+}

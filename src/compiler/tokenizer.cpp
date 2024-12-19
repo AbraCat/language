@@ -16,6 +16,7 @@ ErrEnum tokenize(const char* fin_name, Node** node_arr, int* n_nodes, NameArr* n
     int buf_size = 0;
     returnErr(readFile(fin_name, (void**)&buf, &buf_size));
     if (prog_text != NULL) *prog_text = buf;
+    clearComments(buf, '#');
 
     int buf_pos = 0, eof = 0, pos_incr = 0, cur_node = 0;
     *node_arr = (Node*)calloc(buf_size, sizeof(Node));
