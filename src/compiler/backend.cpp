@@ -101,7 +101,7 @@ static ErrEnum compileS(FILE* fout, Node* node)
             fprintf(fout, "POP %s\n", ret_val_reg);
             for (int ind = 0; ind < n_vars; ++ind)
                 fprintf(fout, "POP %s\n", trash_reg);
-            fprintf(fout, "POP%s\nPUSH %s\nRET\n", frame_adr_reg, ret_val_reg);
+            fprintf(fout, "POP %s\nPUSH %s\nRET\n", frame_adr_reg, ret_val_reg);
             return ERR_OK;
         case OP_ASSIGN:
             myAssert(node->lft != NULL && node->lft->type == TYPE_VAR && node->rgt != NULL);
