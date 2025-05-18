@@ -16,7 +16,7 @@ static ErrEnum asmCompileE(FILE* fout, Node* node);
 static const int st_size = 400, cmp_op_priority = 1;
 static int label_cnt = 0, n_vars = 0, n_args = 0;
 static NameArr* namearr = NULL;
-static const char calc_reg1[] = "rbx", calc_reg2[] = "rcx";
+static const char calc_reg1[] = "rbx", calc_reg2[] = "rcx"; // can't be rax or rdx
 
 ErrEnum runAsmBackend(Node* tree, NameArr* name_arr, FILE* fout)
 {
@@ -214,7 +214,13 @@ static ErrEnum asmCompileE(FILE* fout, Node* node)
     if (op_info->priority > cmp_op_priority)
     {
         if (node->val.op_code == OP_DIV)
-            fprintf(fout, "xor rdx, rdx\nmov rax, %s\nidiv %s\npush rax\n", calc_reg1, calc_reg2);
+            fprintf(fout, "xor rdx, rdx\n"
+                "mov rax, -1\n"
+                "cmp %s, rdx\n"
+                "cmovl rdx, rax\n"
+                "mov rax, %s\n"
+                "idiv %s\n"
+                "push rax\n", calc_reg1, calc_reg1, calc_reg2);
         else
             fprintf(fout, "%s %s, %s\npush %s\n", op_info->asm_instr, calc_reg1, calc_reg2, calc_reg1);
         return ERR_OK;
