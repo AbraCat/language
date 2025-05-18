@@ -52,13 +52,13 @@ void simplify(Node* node)
     {
         if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
     }
-    else if (node->val.op_code == OP_POW)
-    {
-        if (simplifyCase(node, RGT_NODE, 0, 1, 1)) return;
-        if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
-        if (simplifyCase(node, LFT_NODE, 0, 1, 0)) return;
-        if (simplifyCase(node, LFT_NODE, 1, 1, 1)) return;
-    }
+    // else if (node->val.op_code == OP_POW)
+    // {
+    //     if (simplifyCase(node, RGT_NODE, 0, 1, 1)) return;
+    //     if (simplifyCase(node, RGT_NODE, 1, 0, 1)) return;
+    //     if (simplifyCase(node, LFT_NODE, 0, 1, 0)) return;
+    //     if (simplifyCase(node, LFT_NODE, 1, 1, 1)) return;
+    // }
 }
 
 int simplifyCase(Node* node, NodeChild crit_child, int crit_val, bool replace_with_num, int replacement)
@@ -127,7 +127,7 @@ void evaluate(Node* node, int* ans)
     }
     myAssert(node->type == TYPE_OP);
 
-    #define OP_CODEGEN(name, n_operands, value, priority, text) \
+    #define OP_CODEGEN(name, n_operands, value, priority, text, asm_instr) \
     case OP_ ## name:                                           \
     {                                                           \
         int arg1 = 0, arg2 = 0;                              \

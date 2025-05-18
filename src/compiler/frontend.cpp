@@ -6,6 +6,7 @@
 
 #include <frontend.h>
 #include <tokenizer.h>
+#include <standartlib.h>
 
 #define CUR_NODE (pars->s[pars->p])
 #define INCR_P ++(pars->p)
@@ -47,19 +48,24 @@ static ErrEnum getFuncCall(Parser* pars, Node** node);
 static ErrEnum getCommaSeparated(Parser* pars, Node** node,                   int* n_nodes, ErrEnum (*rule)(Parser*, Node**));
 static ErrEnum getInBrackets    (Parser* pars, Node** node, bool allow_empty, int* n_nodes, ErrEnum (*rule)(Parser*, Node**));
 
-ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, const char** prog_text)
+ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, NameArr** name_arr, const char** prog_text)
 {
     myAssert(tree != NULL && *tree == NULL && fin_name != NULL && to_free != NULL && *to_free == NULL);
 
     Parser pars = {};
     returnErr(nameArrCtor(&pars.name_arr));
-    returnErr(tokenize(fin_name, &pars.s, &pars.n_nodes, &pars.name_arr, prog_text));
+    insertStdNames(pars.name_arr);
+    returnErr(tokenize(fin_name, &pars.s, &pars.n_nodes, pars.name_arr, prog_text));
+    // returnErr(connectLinear(pars.s, pars.n_nodes));
+    // returnErr(treeDump(pars.s));
 
     returnErr(getG(&pars, &pars.root));
     if (pars.synt_err.err) syntaxErr(&pars.synt_err);
+    // returnErr(treeDump(pars.root));
 
     *tree = pars.root;
     *to_free = pars.s;
+    *name_arr = pars.name_arr;
     return ERR_OK;
 }
 
@@ -150,7 +156,7 @@ static ErrEnum getFuncDecl(Parser* pars, Node** node)
     INCR_P;
 
     if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("FUNC NAME");
-    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    Name* name_struct = pars->name_arr->names + CUR_NODE.val.var_id;
     if (name_struct->type == NAME_VAR) SYNT_ERR("VAR AND FUNC WITH SAME NAME"); // can only happen with gloabl vars which are not supported yet
     if (name_struct->type == NAME_UNDECL) name_struct->type = NAME_FUNC;
     CUR_NODE.type = TYPE_FUNC;
@@ -164,7 +170,6 @@ static ErrEnum getFuncDecl(Parser* pars, Node** node)
     RET_IF_SYNT_ERR;
     if (name_struct->n_args >= 0 && n_args != name_struct->n_args) SYNT_ERR("SAME FUNC WITH DIFFERENT NUM OF ARGS");
     if (name_struct->n_args < 0) name_struct->n_args = n_args;
-
     returnErr(getBody(pars, &bracket_node->rgt, 1));
     RET_IF_SYNT_ERR;
 
@@ -176,7 +181,7 @@ static ErrEnum getFuncDecl(Parser* pars, Node** node)
     bracket_node->parent = op_func_node;
     *node = op_func_node;
 
-    undeclVars(&pars->name_arr);
+    undeclVars(pars->name_arr);
     NO_SYNT_ERR_RET;
 }
 
@@ -184,7 +189,7 @@ static ErrEnum getFuncParam(Parser* pars, Node** node)
 {
     START_RULE;
     if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("VAR NAME");
-    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    Name* name_struct = pars->name_arr->names + CUR_NODE.val.var_id;
     if (name_struct->type != NAME_UNDECL) SYNT_ERR("NAME ALREADY USED");
     name_struct->type = NAME_VAR;
     name_struct->var_id = CUR_NODE.val.var_id = pars->var_cnt++;
@@ -234,7 +239,7 @@ static ErrEnum getVarDecl(Parser* pars, Node** node)
     INCR_P;
 
     if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("VAR NAME");
-    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    Name* name_struct = pars->name_arr->names + CUR_NODE.val.var_id;
     if (name_struct->type != NAME_UNDECL) SYNT_ERR("NAME ALREADY USED");
     name_struct->type = NAME_VAR;
     name_struct->var_id = CUR_NODE.val.var_id = pars->var_cnt++;
@@ -304,7 +309,7 @@ static ErrEnum getIf(Parser* pars, Node** node)
 
 static ErrEnum getWhile(Parser* pars, Node** node)
 {
-    returnErr(getIfLike(pars, node, OP_WHILE));
+    return getIfLike(pars, node, OP_WHILE);
 }
 
 static ErrEnum getRet(Parser* pars, Node** node)
@@ -428,7 +433,7 @@ static ErrEnum getVarInExpr(Parser* pars, Node** node)
 {
     START_RULE;
     if (CUR_NODE.type != TYPE_VAR) SYNT_ERR("VAR NAME");
-    Name *name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    Name *name_struct = pars->name_arr->names + CUR_NODE.val.var_id;
     if (name_struct->type != NAME_VAR) SYNT_ERR("NO VAR WITH SUCH NAME");
     CUR_NODE.val.var_id = name_struct->var_id;
     *node = &CUR_NODE;
@@ -439,7 +444,7 @@ static ErrEnum getVarInExpr(Parser* pars, Node** node)
 static ErrEnum getFuncCall(Parser* pars, Node** node)
 {
     START_RULE;
-    Name* name_struct = pars->name_arr.names + CUR_NODE.val.var_id;
+    Name* name_struct = pars->name_arr->names + CUR_NODE.val.var_id;
     if (pars->s[pars->p + 1].type != TYPE_OP || pars->s[pars->p + 1].val.op_code != OP_OPEN_BRACKET) SYNT_ERR("(");
 
     if (name_struct->type == NAME_VAR) SYNT_ERR("VAR AND FUNC WITH SAME NAME");

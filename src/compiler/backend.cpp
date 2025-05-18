@@ -12,9 +12,9 @@ static ErrEnum compileIf(FILE* fout, Node* node);
 static ErrEnum compileWhile(FILE* fout, Node* node);
 static ErrEnum compileE(FILE* fout, Node* node);
 
-const int st_size = 400, cmp_op_priority = 1;
-int label_cnt = 0, n_vars = 0;
-const char trash_reg[] = "AX", ret_val_reg[] = "BX", frame_adr_reg[] = "CX";
+static const int st_size = 400, cmp_op_priority = 1;
+static int label_cnt = 0, n_vars = 0;
+static const char trash_reg[] = "AX", ret_val_reg[] = "BX", frame_adr_reg[] = "CX";
 
 ErrEnum runBackend(Node* tree, FILE* fout)
 {

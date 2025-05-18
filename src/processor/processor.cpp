@@ -131,6 +131,7 @@ ErrEnum runProc(Proc* prc, FILE* fin, FILE* fout)
             CASE_ARITHM_OP(SUB, -)
             CASE_ARITHM_OP(MUL, *)
             CASE_ARITHM_OP(DIV, /)
+            CASE_ARITHM_OP(XOR, ^)
 
             case CMD_SQRT:                                     
                 returnErr(stPop(&prc->st, &prc->arg1));     

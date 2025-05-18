@@ -42,7 +42,8 @@ enum CmdCode
     CMD_DRAW  = 19,
     CMD_SQRT  = 20,
     CMD_POW   = 21,
-    CMD_SIZE  = 22,
+    CMD_XOR   = 22,
+    CMD_SIZE  = 23,
 };
 
 ErrEnum printRegName(RegEnum reg_num, FILE* fout);

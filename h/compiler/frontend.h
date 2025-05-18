@@ -54,11 +54,11 @@ struct Parser
     SyntaxErr synt_err;
 
     Node* root;
-    NameArr name_arr;
+    NameArr* name_arr;
 
     int var_cnt; // number of vars in current function
 };
 
-ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, const char** prog_text);
+ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, NameArr** name_arr, const char** prog_text);
 
 #endif // FRONTEND_H

@@ -10,7 +10,7 @@
 #include <utils.h>
 #include <str.h>
 
-const int n_cmds = 23, max_label_len = 50, buffer_size = 50;
+const int n_cmds = 24, max_label_len = 50, buffer_size = 50;
 
 #define CMD_ARRAY_CASE(name, type) {CMD_ ## name, CMDT_ ## type, #name, sizeof #name - 1},
 Cmd cmd_array[n_cmds] = 
@@ -37,6 +37,7 @@ Cmd cmd_array[n_cmds] =
     CMD_ARRAY_CASE(DRAW, NO_ARG)
     CMD_ARRAY_CASE(SQRT, NO_ARG)
     CMD_ARRAY_CASE(POW, NO_ARG)
+    CMD_ARRAY_CASE(XOR, NO_ARG)
     CMD_ARRAY_CASE(SIZE, NO_ARG)
 };
 #undef CMD_ARRAY_CASE

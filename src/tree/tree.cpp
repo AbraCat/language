@@ -10,7 +10,7 @@ int dump_cnt = 0;
 extern const int name_buf_size = 30;
 static const int buffer_size = 300;
 
-#define OP_CODEGEN(name, n_operands, value, priority, text) {OP_ ## name, #name, text, sizeof text - 1, priority},
+#define OP_CODEGEN(name, n_operands, value, priority, text, asm_instr) {OP_ ## name, #name, text, asm_instr, sizeof text - 1, priority},
 static OpInfo op_info_arr[] = {
     #include <operations.h>
 };
@@ -359,7 +359,8 @@ ErrEnum treeMakeGraph(Node* tree)
 
     sprintf(buf, "dot %s/dot-src/dot-src.txt -Tpng -o%s/dot-img/dot-img-%d.png", 
     log_path, log_path, dump_cnt);
-    system(buf);
+    int sys_err = system(buf);
+    if (sys_err != 0) printf("System err %d\n", sys_err);
 
     return ERR_OK;
 }
@@ -369,7 +370,7 @@ ErrEnum treeDump(Node* tree)
     myAssert(tree != NULL);
 
     char buf[buffer_size] = "";
-    openDumpFile();
+    returnErr(openDumpFile());
 
     // dump text
 

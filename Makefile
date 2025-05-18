@@ -1,4 +1,4 @@
-.PHONY: all clean prc cmp
+.PHONY: all clean prc cmp create_dir comp_nasm nasm assemble
 
 all: exe/proc.exe exe/comp.exe
 
@@ -8,35 +8,78 @@ prc: all
 cmp: all
 	@exe/comp.exe
 
+comp_nasm:
+	@exe/comp.exe -n
+
+nasm: all
+	@exe/comp.exe -n
+	@nasm -felf64 asm/prog.asm -g -o bin/prog.o
+	@ld bin/prog.o -o bin/prog.exe
+
+assemble: all
+	@nasm -felf64 asm/prog.asm -g -o bin/prog.o
+	@ld bin/prog.o -o bin/prog.exe
+
+run:
+	@bin/prog.exe
+
+create_dir:
+	@mkdir d
+	@mkdir o
+	@mkdir exe
+	@mkdir log
+	@mkdir log/dump
+	@mkdir dot-img
+
+	@mkdir bin
+	@mkdir asm
+	@mkdir txt
+
+	@mkdir d/stack
+	@mkdir d/processor
+	@mkdir d/assembler
+	@mkdir d/disassembler
+	@mkdir d/tree
+	@mkdir d/compiler
+
+	@mkdir o/stack
+	@mkdir o/processor
+	@mkdir o/assembler
+	@mkdir o/disassembler
+	@mkdir o/tree
+	@mkdir o/compiler
+
 clean:
-	@rmdir d /s /q
-	@rmdir o /s /q
-	@rmdir exe /s /q
+	@rm -rf d o exe log dot-img
 
 	@mkdir d
 	@mkdir o
 	@mkdir exe
+	@mkdir log
+	@mkdir log/dump
+	@mkdir log/dot-src
+	@mkdir log/dot-img
 
-	@mkdir d\stack
-	@mkdir d\processor
-	@mkdir d\assembler
-	@mkdir d\disassembler
-	@mkdir d\tree
-	@mkdir d\compiler
+	@mkdir d/stack
+	@mkdir d/processor
+	@mkdir d/assembler
+	@mkdir d/disassembler
+	@mkdir d/tree
+	@mkdir d/compiler
 
-	@mkdir o\stack
-	@mkdir o\processor
-	@mkdir o\assembler
-	@mkdir o\disassembler
-	@mkdir o\tree
-	@mkdir o\compiler
+	@mkdir o/stack
+	@mkdir o/processor
+	@mkdir o/assembler
+	@mkdir o/disassembler
+	@mkdir o/tree
+	@mkdir o/compiler
 
 clean_log:
 	@rmdir log /s /q
 	@mkdir log
-	@mkdir log\dot-src
-	@mkdir log\dot-img
-	@mkdir log\dump
+	@mkdir log/dot-src
+	@mkdir log/dot-img
+	@mkdir log/dump
 
 CC:= gcc
 
@@ -55,7 +98,7 @@ INCLUDE_FLAGS:= -I ./h -I ./h/processor -I ./h/stack -I ./h/assembler -I ./h/dis
 CFLAGS:= $(INCLUDE_FLAGS) -Wno-unused-parameter -Wno-unused-function # $(DED_FLAGS)
 
 exe/proc.exe: $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(TREE_O_FILES)
-	@$(CC)    $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(TREE_O_FILES) -o exe/proc.exe
+	@$(CC)    $(COMMON_O_FILES) $(STACK_O_FILES) $(PROC_O_FILES) $(TREE_O_FILES) -lm -o exe/proc.exe
 
 exe/comp.exe: $(COMMON_O_FILES) $(COMP_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES)
 	@$(CC)    $(COMMON_O_FILES) $(COMP_O_FILES) $(ASM_O_FILES) $(DISASM_O_FILES) $(TREE_O_FILES) -o exe/comp.exe
@@ -97,10 +140,10 @@ o/%.o: src/%.cpp
 # clean_log:
 # 	@rmdir log /s /q
 # 	@mkdir log
-# 	@mkdir log\dot-src
-# 	@mkdir log\dot-img
-# 	@mkdir log\dump
-# 	@mkdir log\tex
+# 	@mkdir log/dot-src
+# 	@mkdir log/dot-img
+# 	@mkdir log/dump
+# 	@mkdir log/tex
 
 # CC:= gcc
 

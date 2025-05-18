@@ -20,12 +20,12 @@
 
 extern const int n_errs;
 
-enum ErrEnum
+typedef enum ErrEnum
 {
     #define ERR_CODEGEN(code) ERR_ ## code,
     #include <error-codegen.h>
     #undef ERR_CODEGEN
-};
+} ErrEnum;
 
 struct ErrDescr
 {

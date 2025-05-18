@@ -18,7 +18,7 @@ enum NodeType
 
 enum OpEnum
 {
-    #define OP_CODEGEN(name, n_operands, value, priority, text) OP_ ## name,
+    #define OP_CODEGEN(name, n_operands, value, priority, text, asm_instr) OP_ ## name,
     #include <operations.h>
     #undef OP_CODEGEN
 };
@@ -39,7 +39,7 @@ struct NodeTypeInfo
 struct OpInfo
 {
     OpEnum op_code;
-    const char *op_code_str, *op_str;
+    const char *op_code_str, *op_str, *asm_instr;
     const int op_str_len, priority;
 };
 

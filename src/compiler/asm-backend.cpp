@@ -1,0 +1,227 @@
+#include <backend.h>
+#include <str.h>
+#include <standartlib.h>
+#include <tokenizer.h>
+
+static ErrEnum asmCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*asmCompile)(FILE*, Node*));
+static ErrEnum asmCompileFuncDecl(FILE* fout, Node* node);
+static ErrEnum asmCheckFuncParam(FILE* fout, Node* node);
+static ErrEnum asmCompileBody(FILE* fout, Node* node);
+static ErrEnum asmCompileS(FILE* fout, Node* node);
+
+static ErrEnum asmCompileIf(FILE* fout, Node* node);
+static ErrEnum asmCompileWhile(FILE* fout, Node* node);
+static ErrEnum asmCompileE(FILE* fout, Node* node);
+
+static const int st_size = 400, cmp_op_priority = 1;
+static int label_cnt = 0, n_vars = 0, n_args = 0;
+static NameArr* namearr = NULL;
+static const char calc_reg1[] = "rbx", calc_reg2[] = "rcx";
+
+ErrEnum runAsmBackend(Node* tree, NameArr* name_arr, FILE* fout)
+{
+    myAssert(tree != NULL && fout != NULL && name_arr != NULL);
+    namearr = name_arr;
+
+    fprintf(fout,   "global _start\n"
+                    "section .text\n\n"
+                    "_start:\n"
+                    "call main\n"
+                    "push rax\n"
+                    "call exit\n");
+    asmPrintStdLib(fout);
+    return asmCompileCommaSeparated(fout, tree, asmCompileFuncDecl);
+}
+
+static ErrEnum asmCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*asmCompile)(FILE*, Node*))
+{
+    myAssert(fout != NULL && node != NULL);
+
+    Node* cur_node = node;
+    while (cur_node != NULL && cur_node->type == TYPE_OP && cur_node->val.op_code == OP_COMMA) cur_node = cur_node->lft;
+    // printf("aaa %p\n", node);
+    returnErr(asmCompile(fout, cur_node));
+    // printf("aaa %p\n", node);
+    if (cur_node == node) return ERR_OK;
+
+    while (1)
+    {
+        cur_node = cur_node->parent;
+        returnErr(asmCompile(fout, cur_node->rgt));
+        if (cur_node == node) break;
+    }
+    return ERR_OK;
+}
+
+static ErrEnum asmCompileFuncDecl(FILE* fout, Node* node)
+{
+    myAssert(fout != NULL && node != NULL && node->type == TYPE_OP && node->val.op_code == OP_FUNC);
+
+    myAssert(node->lft != NULL && node->lft->type == TYPE_FUNC && node->lft->val.func_name != NULL);
+    printName(fout, node->lft->val.func_name);
+    fputs(":\n", fout);
+
+    n_vars = 0;
+    myAssert(node->rgt != NULL && node->rgt->type == TYPE_OP && node->rgt->val.op_code == OP_OPEN_BRACKET);
+    if (node->rgt->lft != NULL) returnErr(asmCompileCommaSeparated(fout, node->rgt->lft, asmCheckFuncParam));
+    n_args = n_vars;
+    fprintf(fout, "push rbp\nmov rbp, rsp\n");
+    returnErr(asmCompileBody(fout, node->rgt->rgt));
+
+    fprintf(fout, "add rsp, %d ; deallocating local vars\n", 8 * (n_vars - n_args));
+    fprintf(fout, "pop rbp\nxor rax, rax\nret\n");
+    return ERR_OK;
+}
+
+static ErrEnum asmCheckFuncParam(FILE* fout, Node* node)
+{
+    myAssert(fout != NULL && node != NULL);
+    myAssert(node->type == TYPE_VAR);
+    myAssert(node->val.var_id == n_vars);
+    ++n_vars;
+    return ERR_OK;
+}
+
+static ErrEnum asmCompileBody(FILE* fout, Node* node)
+{
+    myAssert(fout != NULL);
+    if (node != NULL) returnErr(asmCompileCommaSeparated(fout, node, asmCompileS));
+    return ERR_OK;
+}
+
+static ErrEnum asmCompileS(FILE* fout, Node* node)
+{
+    myAssert(fout != NULL && node != NULL);
+
+    if (node->type == TYPE_OP) switch (node->val.op_code)
+    {
+        case OP_VAR:
+            myAssert(node->lft != NULL && node->lft->type == TYPE_VAR);
+            myAssert(node->lft->val.var_id == n_vars);
+            fprintf(fout, "push 0 ; var %d declared\n", node->lft->val.var_id);
+            ++n_vars;
+            return ERR_OK;
+        case OP_IF:
+            returnErr(asmCompileIf(fout, node));
+            return ERR_OK;
+        case OP_WHILE:
+            returnErr(asmCompileWhile(fout, node));
+            return ERR_OK;
+        case OP_RET:
+            myAssert(node->lft != NULL);
+            returnErr(asmCompileE(fout, node->lft));
+            fprintf(fout, "pop rax\n"
+                "add rsp, %d ; deallocating local vars\n"
+                "pop rbp\n"
+                "ret\n", 
+                8 * (n_vars - n_args));
+            return ERR_OK;
+        case OP_ASSIGN:
+        {
+            myAssert(node->lft != NULL && node->lft->type == TYPE_VAR && node->rgt != NULL);
+            returnErr(asmCompileE(fout, node->rgt));
+            int var_id = node->lft->val.var_id;
+            if (var_id < n_args)
+                fprintf(fout, "pop QWORD [rbp + %d]\n", 8 * (n_args + 1 - var_id));
+            else
+                fprintf(fout, "pop QWORD [rbp - %d]\n", 8 * (var_id - n_args + 1));
+            return ERR_OK;
+        }
+        default:
+            break;
+    }
+    returnErr(asmCompileE(fout, node));
+    fprintf(fout, "add rsp, 8 ; discarding expression used as statement\n");
+    return ERR_OK;
+}
+
+static ErrEnum asmCompileIf(FILE* fout, Node* node)
+{
+    myAssert(fout != NULL && node != NULL && node->lft != NULL);
+    int label_num = label_cnt++;
+
+    returnErr(asmCompileE(fout, node->lft));
+    fprintf(fout, "pop %s\ntest %s, %s\nje else_%d\n", calc_reg1, calc_reg1, calc_reg1, label_num);
+
+    if (node->rgt->type != TYPE_OP || node->rgt->val.op_code != OP_OPEN_BRACKET)
+    {
+        returnErr(asmCompileBody(fout, node->rgt));
+        fprintf(fout, "else_%d:\n", label_num);
+        return ERR_OK;
+    }
+
+    returnErr(asmCompileBody(fout, node->rgt->lft));
+    fprintf(fout, "jmp if_end_%d\nelse_%d:\n", label_num, label_num);
+    returnErr(asmCompileBody(fout, node->rgt->rgt));
+    fprintf(fout, "if_end_%d:\n", label_num);
+    return ERR_OK;
+}
+
+static ErrEnum asmCompileWhile(FILE* fout, Node* node)
+{
+    myAssert(fout != NULL && node != NULL && node->lft != NULL);
+    int label_num = label_cnt++;
+
+    fprintf(fout, "while_%d:\n", label_num);
+    returnErr(asmCompileE(fout, node->lft));
+    fprintf(fout, "pop %s\ntest %s, %s\nje while_end_%d\n", calc_reg1, calc_reg1, calc_reg1, label_num);
+    returnErr(asmCompileBody(fout, node->rgt));
+    fprintf(fout, "jmp while_%d\nwhile_end_%d:\n", label_num, label_num);
+
+    return ERR_OK;
+}
+
+static ErrEnum asmCompileE(FILE* fout, Node* node)
+{
+    myAssert(fout != NULL && node != NULL);
+    // printf("compE() %p\n", node);
+
+    if (node->type == TYPE_NUM)
+    {
+        fprintf(fout, "push %d\n", node->val.num);
+        return ERR_OK;
+    }
+    if (node->type == TYPE_VAR)
+    {
+        int var_id = node->val.var_id;
+        if (var_id < n_args)
+                fprintf(fout, "push QWORD [rbp + %d]\n", 8 * (n_args + 1 - var_id));
+            else
+                fprintf(fout, "push QWORD [rbp - %d]\n", 8 * (var_id - n_args + 1));
+        return ERR_OK;
+    }
+    if (node->type == TYPE_FUNC)
+    {
+        if (node->lft != NULL) returnErr(asmCompileCommaSeparated(fout, node->lft, asmCompileE));
+        fputs("call ", fout);
+        printName(fout, node->val.func_name);
+
+        Name* name_struct = findName(namearr, node->val.func_name);
+        myAssert(name_struct != NULL && name_struct->type == NAME_FUNC);
+        fprintf(fout, "\nadd rsp, %d ; deallocating function args\n"
+            "push rax ; pushing function return value\n", 
+            8 * name_struct->n_args);
+        return ERR_OK;
+    }
+    myAssert(node->type == TYPE_OP);
+
+    returnErr(asmCompileE(fout, node->lft));
+    returnErr(asmCompileE(fout, node->rgt));
+
+    OpInfo *op_info = NULL;
+    returnErr(getOpByCode(node->val.op_code, &op_info));
+    fprintf(fout, "pop %s\npop %s\n", calc_reg2, calc_reg1);
+    if (op_info->priority > cmp_op_priority)
+    {
+        if (node->val.op_code == OP_DIV)
+            fprintf(fout, "xor rdx, rdx\nmov rax, %s\nidiv %s\npush rax\n", calc_reg1, calc_reg2);
+        else
+            fprintf(fout, "%s %s, %s\npush %s\n", op_info->asm_instr, calc_reg1, calc_reg2, calc_reg1);
+        return ERR_OK;
+    }
+    myAssert(op_info->priority == cmp_op_priority);
+    int label_num = label_cnt++;
+    fprintf(fout, "cmp %s, %s\n%s cmp_success_%d\npush 0\njmp cmp_end_%d\ncmp_success_%d:\npush 1\ncmp_end_%d:\n", 
+    calc_reg1, calc_reg2, op_info->asm_instr, label_num, label_num, label_num, label_num);
+    return ERR_OK;
+}
