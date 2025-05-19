@@ -1,6 +1,6 @@
-#include <backend.h>
+#include <asm-backend.h>
 #include <str.h>
-#include <standartlib.h>
+#include <standardlib.h>
 #include <tokenizer.h>
 
 static ErrEnum asmCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*asmCompile)(FILE*, Node*));

@@ -1,10 +1,22 @@
-#include <backend.h>
+#include <bin-backend.h>
 #include <str.h>
-#include <standartlib.h>
+#include <standardlib.h>
 #include <tokenizer.h>
 #include <label.h>
+#include <instructions.h>
 
 #include <stdlib.h>
+
+static void writeByte(unsigned char n);
+static void writeBytes(unsigned n);
+static void reserveAddress();
+static void writeInt(unsigned n);
+
+static void fixCodeSize(BinBackend* b);
+static ErrEnum addNumberedLabel(const char* name, int label_num, int fixup);
+
+static ErrEnum binBackendCtor(BinBackend** b, FILE* fout, NameArr* name_arr);
+static void binBackendDtor(BinBackend* b);
 
 static ErrEnum binCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*binCompile)(FILE*, Node*));
 static ErrEnum binCompileFuncDecl(FILE* fout, Node* node);
@@ -17,67 +29,107 @@ static ErrEnum binCompileWhile(FILE* fout, Node* node);
 static ErrEnum binCompileE(FILE* fout, Node* node);
 static ErrEnum binCompilePushE(FILE* fout, Node* node);
 
-static const int cmp_op_priority = 1, buflen = 0x3000, name_buf_len = 100, code_start = 0x1000;
-static int label_cnt = 0, n_vars = 0, n_args = 0;
-static NameArr* namearr = NULL;
+static BinBackend* b = NULL;
+static const unsigned byte_size = 0x100;
+static const int p_filesz_adr = 0x98, p_memsz_adr = 0xa0, code_size_len = 2;
+static const int cmp_op_priority = 1, buflen = 0x3000, name_buf_len = 100, code_offset = 0x1000;
 
-static int pos = 0;
-static char *buf = NULL, *name_buf = NULL;
+#define BYTE(byte) (b->buf)[b->pos++] = 0x ## byte;
+#define PUT(expr)  (b->buf)[b->pos++] = (expr);
+#define ADR(integer) {*(int*)(b->buf + b->pos) = integer; b->pos += 4; }
 
-LabelArray *la = NULL, *ft = NULL;
-
-#define BYTE(byte) buf[pos++] = 0x ## byte;
-#define PUT(expr)  buf[pos++] = (expr);
-#define ADR(integer) {*(int*)(buf + pos) = integer; pos += 4; }
-#define ADD_LABEL(table, name)\
+#define DEFINE_LABEL(name) returnErr(addNumberedLabel(name, label_num, 0));
+#define FIXUP_LABEL(name)\
 {\
-    sprintf(name_buf, name "%d", label_num);\
-    returnErr(addLabel(table, pos, name_buf, 1));\
+    returnErr(addNumberedLabel(name, label_num, 1));\
+    reserveAddress();\
 }
-#define ADD_LABEL_NO_NUM(table, name) returnErr(addLabel(table, pos, name, 1));
+#define FIXUP_FUNCTION_LABEL(name)\
+{\
+    returnErr(addLabel(b->ft, b->pos, name, 1));\
+    reserveAddress();\
+}
+
+static ErrEnum binBackendCtor(BinBackend** backend, FILE* fout, NameArr* name_arr)
+{
+    b = *backend = (BinBackend*)calloc(1, sizeof(BinBackend));
+    b->buf = (char*)calloc(buflen, 1);
+    b->name_buf = (char*)calloc(name_buf_len, 1);
+
+    returnErr(getBinStdLib(fout, b->buf));
+    b->pos = ((short*)(b->buf))[12];
+    b->label_cnt = 0;
+    b->name_arr = name_arr;
+
+    returnErr(labelArrayCtor(&b->la));
+    returnErr(labelArrayCtor(&b->ft));
+
+    for (int i = 0; i < 3; ++i)
+        addLabel(b->la, b->name_arr->names[i].adr, b->name_arr->names[i].name_str, 1);
+
+    return ERR_OK;
+}
+
+static void binBackendDtor(BinBackend* b)
+{
+    free(b->buf);
+    free(b->name_buf);
+}
 
 ErrEnum runBinBackend(Node* tree, NameArr* name_arr, FILE* fout)
 {
     myAssert(tree != NULL && fout != NULL && name_arr != NULL);
-    namearr = name_arr;
+    returnErr(binBackendCtor(&b, fout, name_arr));
 
-    returnErr(labelArrayCtor(&la));
-    returnErr(labelArrayCtor(&ft));
-
-    for (int i = 0; i < 3; ++i)
-        addLabel(la, namearr->names[i].adr, namearr->names[i].name_str, 1);
-
-    buf = (char*)calloc(buflen, 1);
-    name_buf = (char*)calloc(name_buf_len, 1);
-    returnErr(getBinStdLib(fout, buf));
-
-    // 0x98 (2), 0xa0 (2) - size of code
-    // 0x18 (8) - entrypoint
-    pos = ((short*)buf)[12];
-    // printf("pos: %x\n", pos);
-
-    BYTE(e8) // call main
-    addLabel(ft, pos, "main", 1);
-    ADR(0)
-    BYTE(50) // push rax
-    BYTE(e8) // call exit
-    addLabel(ft, pos, "exit", 1);
-    ADR(0)
+    writeBytes(CALL); // call main
+    FIXUP_FUNCTION_LABEL("main")
+    writeBytes(PUSH_RAX);
+    writeBytes(CALL); // call exit
+    FIXUP_FUNCTION_LABEL("exit")
 
     returnErr(binCompileCommaSeparated(fout, tree, binCompileFuncDecl));
+    fixCodeSize(b);
+    returnErr(fixup(b->buf, b->ft, b->la, 1));
+    fwrite(b->buf, 1, b->pos, fout);
 
-    ((short*)buf)[0x98 / 2] = ((short*)buf)[0xa0 / 2] = pos - code_start;
-
-    // labelArrDump(la);
-    // labelArrDump(ft);
-    returnErr(fixup(buf, ft, la, 1));
-    fwrite(buf, 1, pos, fout);
-
-    free(buf);
-    free(name_buf);
-    labelArrayDtor(la);
-    labelArrayDtor(ft);
+    free(b->buf);
+    free(b->name_buf);
+    labelArrayDtor(b->la);
+    labelArrayDtor(b->ft);
     return ERR_OK;
+}
+
+static void writeByte(unsigned char n) { b->buf[b->pos++] = n; }
+static void reserveAddress() { writeInt(0); }
+
+static void writeBytes(unsigned n)
+{
+    while (n != 0)
+    {
+        b->buf[b->pos++] = n % byte_size;
+        n /= byte_size;
+    }
+}
+
+static void writeInt(unsigned n)
+{
+    for (int i = 0; i < sizeof(int); ++i)
+    {
+        b->buf[b->pos++] = n % byte_size;
+        n /= byte_size;
+    }
+}
+
+static void fixCodeSize(BinBackend* b)
+{
+    *(short*)(b->buf + p_filesz_adr) = b->pos - code_offset;
+    *(short*)(b->buf + p_memsz_adr) = b->pos - code_offset;
+}
+
+static ErrEnum addNumberedLabel(const char* name, int label_num, int fixup)
+{
+    sprintf(b->name_buf, "%s%d", name, label_num);
+    return addLabel(fixup ? b->ft : b->la, b->pos, b->name_buf, 1);
 }
 
 static ErrEnum binCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*binCompile)(FILE*, Node*))
@@ -101,53 +153,31 @@ static ErrEnum binCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*binCom
 static ErrEnum binCompileFuncDecl(FILE* fout, Node* node)
 {
     myAssert(fout != NULL && node != NULL && node->type == TYPE_OP && node->val.op_code == OP_FUNC);
-
     myAssert(node->lft != NULL && node->lft->type == TYPE_FUNC && node->lft->val.func_name != NULL);
-    // printName(fout, node->lft->val.func_name);
-    // fputs(":\n", fout);
 
-    // n_vars = 0;
-    // myAssert(node->rgt != NULL && node->rgt->type == TYPE_OP && node->rgt->val.op_code == OP_OPEN_BRACKET);
-    // if (node->rgt->lft != NULL) returnErr(binCompileCommaSeparated(fout, node->rgt->lft, asmCheckFuncParam));
-    // n_args = n_vars;
-    // fprintf(fout, "push rbp\nmov rbp, rsp\n");
-    // returnErr(binCompileBody(fout, node->rgt->rgt));
-
-    // fprintf(fout, "add rsp, %d ; deallocating local vars\n", 8 * (n_vars - n_args));
-    // fprintf(fout, "pop rbp\nxor rax, rax\nret\n");
-    // return ERR_OK;
-
-    Name* name_struct = findName(namearr, node->lft->val.func_name);
+    Name* name_struct = findName(b->name_arr, node->lft->val.func_name);
     myAssert(name_struct != NULL && name_struct->type == NAME_FUNC);
-    name_struct->adr = pos;
-    // printf("func pos: %x\n", pos);
-    addLabel(la, pos, name_struct->name_str, 1);
+    name_struct->adr = b->pos;
+    addLabel(b->la, b->pos, name_struct->name_str, 1);
     
-    n_vars = 0;
+    b->n_vars = 0;
     myAssert(node->rgt != NULL && node->rgt->type == TYPE_OP && node->rgt->val.op_code == OP_OPEN_BRACKET);
     if (node->rgt->lft != NULL) returnErr(binCompileCommaSeparated(fout, node->rgt->lft, asmCheckFuncParam));
-    n_args = n_vars;
-    // fprintf(fout, "push rbp\nmov rbp, rsp\n");
-    BYTE(55) // push rbp
-    BYTE(48) // mov rbp, rsp
-    BYTE(89)
-    BYTE(e5)
+    b->n_args = b->n_vars;
+
+    writeBytes(PUSH_RBP);
+    writeBytes(MOV_RBP_RSP);
     returnErr(binCompileBody(fout, node->rgt->rgt));
 
-    // fprintf(fout, "add rsp, %d ; deallocating local vars\n", 8 * (n_vars - n_args));
-    // fprintf(fout, "pop rbp\nxor rax, rax\nret\n");
-    if (n_vars != n_args)
+    if (b->n_vars != b->n_args)
     {
-        BYTE(48) // add rsp, 8 * (n_vars - n_args)
-        BYTE(83)
-        BYTE(c4)
-        PUT(8 * (n_vars - n_args))
+        writeBytes(ADD_RSP_NUM);
+        writeByte(8 * (b->n_vars - b->n_args));
     }
-    BYTE(5d) // pop rbp
-    BYTE(48) // xor rax, rax
-    BYTE(31)
-    BYTE(c0)
-    BYTE(c3) // ret
+    writeBytes(POP_RBP);
+    writeBytes(XOR_RAX_RAX);
+    writeBytes(RET);
+
     return ERR_OK;
 }
 
@@ -155,8 +185,9 @@ static ErrEnum asmCheckFuncParam(FILE* fout, Node* node)
 {
     myAssert(fout != NULL && node != NULL);
     myAssert(node->type == TYPE_VAR);
-    myAssert(node->val.var_id == n_vars);
-    ++n_vars;
+    myAssert(node->val.var_id == b->n_vars);
+
+    ++b->n_vars;
     return ERR_OK;
 }
 
@@ -175,11 +206,12 @@ static ErrEnum binCompileS(FILE* fout, Node* node)
     {
         case OP_VAR:
             myAssert(node->lft != NULL && node->lft->type == TYPE_VAR);
-            myAssert(node->lft->val.var_id == n_vars);
-            // fprintf(fout, "push 0 ; var %d declared\n", node->lft->val.var_id);
-            BYTE(6a) // push node->lft->val.var_id
-            PUT(node->lft->val.var_id)
-            ++n_vars;
+            myAssert(node->lft->val.var_id == b->n_vars);
+
+            writeBytes(PUSH_NUM);
+            writeByte(node->lft->val.var_id);
+
+            ++b->n_vars;
             return ERR_OK;
         case OP_IF:
             returnErr(binCompileIf(fout, node));
@@ -190,35 +222,25 @@ static ErrEnum binCompileS(FILE* fout, Node* node)
         case OP_RET:
             myAssert(node->lft != NULL);
             returnErr(binCompileE(fout, node->lft));
-            // fprintf(fout, "add rsp, %d ; deallocating local vars\n"
-            //     "pop rbp\n"
-            //     "ret\n", 
-            //     8 * (n_vars - n_args));
-            if (n_vars != n_args)
+            
+            if (b->n_vars != b->n_args)
             {
-                BYTE(48) // add rsp, 8 * (n_vars - n_args)
-                BYTE(83)
-                BYTE(c4)
-                PUT(8 * (n_vars - n_args))
+                writeBytes(ADD_RSP_NUM);
+                writeByte(8 * (b->n_vars - b->n_args));
             }
-            BYTE(5d) // pop rbp
-            BYTE(c3) // ret
+            writeBytes(POP_RBP);
+            writeBytes(RET);
             return ERR_OK;
         case OP_ASSIGN:
         {
             myAssert(node->lft != NULL && node->lft->type == TYPE_VAR && node->rgt != NULL);
             returnErr(binCompileE(fout, node->rgt));
-            int var_id = node->lft->val.var_id;
 
-            BYTE(48) // mov [rbp + ??], rax
-            BYTE(89)
-            BYTE(45)
-            if (var_id < n_args)
-                // fprintf(fout, "mov [rbp + %d], rax\n", 8 * (n_args + 1 - var_id));
-                PUT(8 * (n_args + 1 - var_id))
-            else
-                // fprintf(fout, "mov [rbp - %d], rax\n", 8 * (var_id - n_args + 1));
-                PUT(0x100 - 8 * (var_id - n_args + 1))
+            int var_id = node->lft->val.var_id;
+            writeBytes(MOV_RBP_PLUS_NUM_RAX);
+            if (var_id < b->n_args) writeByte(8 * (b->n_args + 1 - var_id));
+            else writeByte(0x100 - 8 * (var_id - b->n_args + 1));
+
             return ERR_OK;
         }
         default:
@@ -231,62 +253,49 @@ static ErrEnum binCompileS(FILE* fout, Node* node)
 static ErrEnum binCompileIf(FILE* fout, Node* node)
 {
     myAssert(fout != NULL && node != NULL && node->lft != NULL);
-    int label_num = label_cnt++;
-    // printf("if: %x\n", pos);
 
+    int label_num = b->label_cnt++;
     returnErr(binCompileE(fout, node->lft));
-    // printf("if: %x\n", pos);
-    // fprintf(fout, "test rax, rax\nje else_%d\n", label_num);
-    BYTE(48) // test rax, rax
-    BYTE(85)
-    BYTE(c0)
-    BYTE(0f) // je else_%d
-    BYTE(84)
-    ADD_LABEL(ft, "else")
-    ADR(0)
+
+    writeBytes(TEST_RAX_RAX);
+    writeBytes(JE);
+    FIXUP_LABEL("else")
 
     if (node->rgt->type != TYPE_OP || node->rgt->val.op_code != OP_OPEN_BRACKET)
     {
         returnErr(binCompileBody(fout, node->rgt));
-        // fprintf(fout, "else_%d:\n", label_num);
-        ADD_LABEL(la, "else")
+        DEFINE_LABEL("else")
         return ERR_OK;
     }
 
     returnErr(binCompileBody(fout, node->rgt->lft));
-    // fprintf(fout, "jmp if_end_%d\nelse_%d:\n", label_num, label_num);
-    BYTE(e9) // jmp if_end_%d
-    ADD_LABEL(ft, "ifEnd")
-    ADR(0)
-    ADD_LABEL(la, "else")
+    writeBytes(JMP);
+    FIXUP_LABEL("ifEnd")
+
+    DEFINE_LABEL("else")
     returnErr(binCompileBody(fout, node->rgt->rgt));
-    // fprintf(fout, "if_end_%d:\n", label_num);
-    ADD_LABEL(la, "ifEnd")
+
+    DEFINE_LABEL("ifEnd")
     return ERR_OK;
 }
 
 static ErrEnum binCompileWhile(FILE* fout, Node* node)
 {
     myAssert(fout != NULL && node != NULL && node->lft != NULL);
-    int label_num = label_cnt++;
 
-    // fprintf(fout, "while_%d:\n", label_num);
-    ADD_LABEL(la, "while")
+    int label_num = b->label_cnt++;
+    DEFINE_LABEL("while")
     returnErr(binCompileE(fout, node->lft));
-    // fprintf(fout, "test rax, rax\nje while_end_%d\n", label_num);
-    BYTE(48) // test rax, rax
-    BYTE(85)
-    BYTE(c0)
-    BYTE(0f) // je while_end_%d
-    BYTE(84)
-    ADD_LABEL(ft, "whileEnd")
-    ADR(0)
+
+    writeBytes(TEST_RAX_RAX);
+    writeBytes(JE);
+    FIXUP_LABEL("whileEnd")
+
     returnErr(binCompileBody(fout, node->rgt));
-    // fprintf(fout, "jmp while_%d\nwhile_end_%d:\n", label_num, label_num);
-    BYTE(e9) // jmp while_%d
-    ADD_LABEL(ft, "while")
-    ADR(0)
-    ADD_LABEL(la, "whileEnd")
+    writeBytes(JMP);
+    FIXUP_LABEL("while")
+
+    DEFINE_LABEL("whileEnd")
     return ERR_OK;
 }
 
@@ -296,61 +305,41 @@ static ErrEnum binCompileE(FILE* fout, Node* node)
 
     if (node->type == TYPE_NUM)
     {
-        // fprintf(fout, "mov rax, %d\n", node->val.num);
-        // mov rax, %d
-        if (node->val.num >= 0)
-        {
-            BYTE(b8)
-        }
-        else
-        {
-            BYTE(48)
-            BYTE(c7)
-            BYTE(c0)
-        }
-        ADR(node->val.num)
+        // mov rax, node->val.num
+        if (node->val.num >= 0) writeBytes(MOV_RAX_NONNEGATIVE);
+        else writeBytes(MOV_RAX_NEGATIVE);
+        writeInt(node->val.num);
         return ERR_OK;
     }
     if (node->type == TYPE_VAR)
     {
         int var_id = node->val.var_id;
-        BYTE(48) // mov rax, [rbp + %d]
-        BYTE(8b)
-        BYTE(45)
-        if (var_id < n_args)
-            // fprintf(fout, "mov rax, [rbp + %d]\n", 8 * (n_args + 1 - var_id));
-            PUT(8 * (n_args + 1 - var_id))
-        else
-            // fprintf(fout, "mov rax, [rbp - %d]\n", 8 * (var_id - n_args + 1));
-            PUT(0x100 - 8 * (var_id - n_args + 1))
+        writeBytes(MOV_RAX_RBP_PLUS_NUM);
+        if (var_id < b->n_args) writeByte(8 * (b->n_args + 1 - var_id));
+        else writeByte(0x100 - 8 * (var_id - b->n_args + 1));
+
         return ERR_OK;
     }
     if (node->type == TYPE_FUNC)
     {
         if (node->lft != NULL) returnErr(binCompileCommaSeparated(fout, node->lft, binCompilePushE));
-        // fputs("call ", fout);
-        // printName(fout, node->val.func_name);
-        BYTE(e8) // call %s
-        ADD_LABEL_NO_NUM(ft, node->val.func_name)
-        ADR(0)
 
-        Name* name_struct = findName(namearr, node->val.func_name);
+        writeBytes(CALL);
+        FIXUP_FUNCTION_LABEL(node->val.func_name)
+
+        Name* name_struct = findName(b->name_arr, node->val.func_name);
         myAssert(name_struct != NULL && name_struct->type == NAME_FUNC);
-        // fprintf(fout, "\nadd rsp, %d ; deallocating function args\n", 8 * name_struct->n_args);
-        BYTE(48) // add rsp, 8 * name_struct->n_args
-        BYTE(83)
-        BYTE(c4)
-        PUT(8 * name_struct->n_args)
+        
+        writeBytes(ADD_RSP_NUM);
+        writeByte(8 * name_struct->n_args);
         return ERR_OK;
     }
     myAssert(node->type == TYPE_OP);
 
     returnErr(binCompileE(fout, node->rgt));
-    // fprintf(fout, "push rax\n");
-    BYTE(50) // push rax
+    writeBytes(PUSH_RAX);
     returnErr(binCompileE(fout, node->lft));
-    // fprintf(fout, "pop rbx\n");
-    BYTE(5b)
+    writeBytes(POP_RBX);
 
     // expr1 in rax, expr2 in rbx
     OpInfo *op_info = NULL;
@@ -359,131 +348,81 @@ static ErrEnum binCompileE(FILE* fout, Node* node)
     {
         if (node->val.op_code == OP_DIV)
         {
-            // fprintf(fout, "xor rdx, rdx\n"
-            //     "cmp rax, rdx\n"
-            //     "mov rcx, -1\n"
-            //     "cmovl rdx, rcx\n"
-            //     "idiv rbx\n");
-            BYTE(48) // xor rdx, rdx
-            BYTE(31)
-            BYTE(d2)
-            BYTE(48) // cmp rax, rdx
-            BYTE(39)
-            BYTE(d0)
-            BYTE(48) // mov rcx, -1
-            BYTE(c7)
-            BYTE(c1)
-            ADR(-1)
-            BYTE(48) // cmovl rax, rdx
-            BYTE(0f)
-            BYTE(4c)
-            BYTE(d1)
-            BYTE(48) // idiv rbx
-            BYTE(f7)
-            BYTE(fb)
+            writeBytes(XOR_RDX_RDX);
+            writeBytes(CMP_RAX_RDX);
+            writeBytes(MOV_RCX_NUM);
+            writeInt(-1);
+            writeBytes(CMOVL_RAX_RDX);
+            writeBytes(IDIV_RBX);
+            return ERR_OK;
         }
-        else
+        // op rax, rbx
+        int instr_code = 0;
+        switch (op_info->op_code)
         {
-            // fprintf(fout, "%s rax, rbx\n", op_info->asm_instr);
-            // %s rax, rbx
-            switch (op_info->op_code)
-            {
-                case OP_ADD:
-                    BYTE(48)
-                    BYTE(01)
-                    BYTE(d8)
-                    break;
-                case OP_SUB:
-                    BYTE(48)
-                    BYTE(29)
-                    BYTE(d8)
-                    break;
-                case OP_MUL:
-                    BYTE(48)
-                    BYTE(0f)
-                    BYTE(af)
-                    BYTE(c3)
-                    break;
-                case OP_XOR:
-                    BYTE(48)
-                    BYTE(31)
-                    BYTE(d8)
-                    break;
-                default:
-                    myAssert(0);
-            }
+            case OP_ADD:
+                instr_code = ADD_RAX_RBX;
+                break;
+            case OP_SUB:
+                instr_code = SUB_RAX_RBX;
+                break;
+            case OP_MUL:
+                instr_code = IMUL_RAX_RBX;
+                break;
+            case OP_XOR:
+                instr_code = XOR_RAX_RBX;
+                break;
+            default:
+                myAssert(0);
         }
+        writeBytes(instr_code);
         return ERR_OK;
     }
     myAssert(op_info->priority == cmp_op_priority);
-    // int label_num = label_cnt++;
-    // fprintf(fout, "cmp rax, rbx\n"
-    //     "%s cmp_success_%d\n"
-    //     "xor rax, rax\n"
-    //     "jmp cmp_end_%d\n"
-    //     "cmp_success_%d:\n"
-    //     "mov rax, 1\n"
-    //     "cmp_end_%d:\n", 
-    // op_info->asm_instr, label_num, label_num, label_num, label_num);
-    int label_num = label_cnt++;
-    BYTE(48) // cmp rax, rbx
-    BYTE(39)
-    BYTE(d8)
     
-    // jxx cmp_success_%d
+    int label_num = b->label_cnt++, instr_code = 0;
+    writeBytes(CMP_RAX_RAX);
     switch (op_info->op_code)
     {
         case OP_B:
-            BYTE(0f)
-            BYTE(8c)
+            instr_code = JL;
             break;
         case OP_BE:
-            BYTE(0f)
-            BYTE(8e)
+            instr_code = JLE;
             break;
         case OP_A:
-            BYTE(0f)
-            BYTE(8f)
+            instr_code = JG;
             break;
         case OP_AE:
-            BYTE(0f)
-            BYTE(8d)
+            instr_code = JGE;
             break;
         case OP_E:
-            BYTE(0f)
-            BYTE(84)
+            instr_code = JE;
             break;
         case OP_NE:
-            BYTE(0f)
-            BYTE(85)
+            instr_code = JNE;
             break;
         default:
             myAssert(0);  
     }
-    ADD_LABEL(ft, "cmpSuccess")
-    ADR(0)
+    writeBytes(instr_code);
+    FIXUP_LABEL("cmpSuccess")
 
-    BYTE(48) // xor rax, rax
-    BYTE(31)
-    BYTE(c0)
+    writeBytes(XOR_RAX_RAX);
+    writeBytes(JMP);
+    FIXUP_LABEL("cmpEnd")
 
-    BYTE(e9) // jmp cmp_end_%d
-    ADD_LABEL(ft, "cmpEnd")
-    ADR(0)
+    DEFINE_LABEL("cmpSuccess")
+    writeBytes(MOV_RAX_NUM);
+    writeInt(1);
 
-    ADD_LABEL(la, "cmpSuccess")
-    
-    BYTE(b8) // mov rax, 1
-    ADR(1)
-
-    ADD_LABEL(la, "cmpEnd")
+    DEFINE_LABEL("cmpEnd")
     return ERR_OK;
 }
 
 static ErrEnum binCompilePushE(FILE* fout, Node* node)
 {
     returnErr(binCompileE(fout, node));
-    // fprintf(fout, "push rax\n");
-    BYTE(50) // push rax
+    writeBytes(PUSH_RAX);
     return ERR_OK;
 }

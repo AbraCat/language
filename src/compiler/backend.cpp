@@ -1,6 +1,6 @@
 #include <backend.h>
 #include <str.h>
-#include <standartlib.h>
+#include <standardlib.h>
 
 static ErrEnum compileCommaSeparated(FILE* fout, Node* node, ErrEnum (*compile)(FILE*, Node*));
 static ErrEnum compileFuncDecl(FILE* fout, Node* node);

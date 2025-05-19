@@ -6,7 +6,7 @@
 
 #include <frontend.h>
 #include <tokenizer.h>
-#include <standartlib.h>
+#include <standardlib.h>
 
 #define CUR_NODE (pars->s[pars->p])
 #define INCR_P ++(pars->p)
@@ -54,9 +54,10 @@ ErrEnum runFrontend(const char* fin_name, Node** tree, Node** to_free, NameArr**
 
     Parser pars = {};
     returnErr(nameArrCtor(&pars.name_arr));
-    insertStdNames(pars.name_arr);
+    returnErr(insertStdNames(pars.name_arr));
     returnErr(tokenize(fin_name, &pars.s, &pars.n_nodes, pars.name_arr, prog_text));
     // returnErr(connectLinear(pars.s, pars.n_nodes));
+    // returnErr(treeDump(pars.s));
 
     returnErr(getG(&pars, &pars.root));
     if (pars.synt_err.err) syntaxErr(&pars.synt_err);

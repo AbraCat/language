@@ -20,8 +20,8 @@ assemble: all
 	@nasm -felf64 asm/prog.asm -g -o bin/prog.o
 	@ld bin/prog.o -o bin/prog.exe
 
-stdlib:
-	@nasm -felf64 src/stdlib.asm -o bin/stdlib.o
+bin-stdlib:
+	@nasm -felf64 src/bin-standard.asm -o bin/stdlib.o
 	@ld bin/stdlib.o --strip-all --strip-debug -o bin/stdlib.exe
 	@strip --remove-section=shstrtab bin/stdlib.exe
 
@@ -34,7 +34,7 @@ test-debug:
 	@nasm -felf64 asm/test.asm -o bin/test.o
 	@ld bin/test.o -o bin/test.exe
 
-bin: all stdlib
+bin: all bin-stdlib
 	@exe/comp.exe -b
 	@chmod +x bin/prog.exe
 

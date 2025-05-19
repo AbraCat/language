@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-static const int max_names = 20;
+static const int max_names = 100;
 
 ErrEnum nameArrCtor(NameArr** name_arr)
 {
