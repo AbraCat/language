@@ -10,10 +10,10 @@
 #include <tree.h>
 #include <middlend.h>
 #include <backend.h>
-
 #include <antifrontend.h>
 
 #include <asm-backend.h>
+#include <bin-backend.h>
 
 const char *std_prog_name = "./txt/prog.txt", *std_tree_name = "./txt/tree.txt", 
            *std_asm_name = "./txt/asm.txt",   *std_code_name = "./txt/code.txt",
@@ -25,8 +25,9 @@ ErrEnum checkAntiFrontend(Node* tree);
 
 int main(int argc, const char* argv[])
 {
-    const int n_opts = 4;
-    Option opts[] = {{"-i", "--input"}, {"-a", "--asm"}, {"-o", "--output"}, {"-n", "--nasm"}};
+    const int n_opts = 5;
+    Option opts[] = {{"-i", "--input"}, {"-a", "--asm"}, {"-o", "--output"}, 
+    {"-n", "--nasm"}, {"-b", "--binary"}};
     handleErr(parseOpts(argc, argv, opts, n_opts));
 
     const char *prog_name = optByName(opts, n_opts, "-i")->str_arg, 
@@ -47,6 +48,17 @@ int main(int argc, const char* argv[])
         FILE* nasm_file = fopen(std_nasm_name, "w");
         handleErr(runAsmBackend(tree, name_arr, nasm_file));
         fclose(nasm_file);
+
+        nameArrDtor(name_arr);
+        free((void*)prog_text);
+        free(to_free);
+        return 0;
+    }
+    if (optByName(opts, n_opts, "-b")->trig)
+    {
+        FILE* bin_file = fopen(std_bin_name, "w");
+        handleErr(runBinBackend(tree, name_arr, bin_file));
+        fclose(bin_file);
 
         nameArrDtor(name_arr);
         free((void*)prog_text);

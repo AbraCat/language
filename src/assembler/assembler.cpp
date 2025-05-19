@@ -10,7 +10,7 @@
 #include <utils.h>
 #include <str.h>
 
-const int n_cmds = 24, max_label_len = 50, buffer_size = 50;
+const int n_cmds = 24, buffer_size = 50;
 
 #define CMD_ARRAY_CASE(name, type) {CMD_ ## name, CMDT_ ## type, #name, sizeof #name - 1},
 Cmd cmd_array[n_cmds] = 
@@ -85,8 +85,8 @@ void asmDtor(Asm* ase)
 {
     free(ase->prog_text);
     free(ase->code);
-    labelArrayDtor(&ase->la);
-    labelArrayDtor(&ase->ft);
+    labelArrayDtor(ase->la);
+    labelArrayDtor(ase->ft);
 }
 
 void getRegNum(char* str_name, int* num)
@@ -212,10 +212,10 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
         strlenToSpace(ase.prog_text + ase.prog_text_pos, &len);  \
         if (label[len - 1] == label_end)                         \
         {                                                        \
-            getLabelAdr(&ase.la, label, &ase.arg1);              \
+            getLabelAdr(ase.la, label, &ase.arg1, 0);              \
             ase.code[ase.ip++] = ase.arg1;                       \
             if (ase.arg1 == -1)                                  \
-                addLabel(&ase.ft, ase.ip - 1, label);            \
+                addLabel(ase.ft, ase.ip - 1, label, 0);            \
         }                                                        \
         else                                                     \
             returnErr(strToPosInt(label, ase.code + ase.ip++));  \
@@ -248,7 +248,7 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
         strlenToSpace(ase.prog_text + ase.prog_text_pos, &len);
         if (ase.prog_text[ase.prog_text_pos + len - 1] == label_end)
         {
-            addLabel(&ase.la, ase.ip, ase.prog_text + ase.prog_text_pos);
+            addLabel(ase.la, ase.ip, ase.prog_text + ase.prog_text_pos, 0);
             ase.prog_text_pos += len;
             continue;
         }
@@ -264,12 +264,11 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
             default:
                 return ERR_UNKNOWN;
         }
-
         asmDtor(&ase);
         return ERR_INVAL_CMD;
     }
 
-    returnErr(fixup(ase.code, &ase.ft, &ase.la));
+    returnErr(fixup((char*)ase.code, ase.ft, ase.la, 0));
     if (fwrite(ase.code, sizeof(int), ase.ip, fout) != ase.ip)
         return ERR_IO;
     asmDtor(&ase);
@@ -282,67 +281,5 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
     #undef ASM_CASE_COMPLEX_ARG
     #undef ASM_CASE_LABEL_ARG
 
-    return ERR_OK;
-}
-
-ErrEnum labelArrayCtor(LabelArray* la)
-{
-    la->max_labels = 50;
-    la->n_labels = 0;
-
-    la->labels = (Label*)calloc(la->max_labels, sizeof(Label));
-    if (la->labels == NULL) return ERR_MEM;
-    la->name_buf = (char*)calloc(max_label_len * la->max_labels, sizeof(char));
-    if (la->name_buf == NULL) return ERR_MEM;
-
-    for (int i = 0; i < la->max_labels; ++i)
-    {
-        la->labels[i].adr = -1;
-        la->labels[i].name = la->name_buf + i * max_label_len;
-    }
-
-    return ERR_OK;
-}
-
-void labelArrayDtor(LabelArray* la)
-{
-    free(la->labels);
-    free(la->name_buf);
-}
-
-void addLabel(LabelArray* la, int adr, char* name)
-{
-    la->labels[la->n_labels].adr = adr;
-
-    la->labels[la->n_labels].name = la->name_buf + la->n_labels * max_label_len;
-    strncpyToSpace(la->labels[la->n_labels].name, name, max_label_len);
-    ++(la->n_labels);
-}
-
-void getLabelAdr(LabelArray* la, char* name, int* adr)
-{
-    for (int i = 0; i < la->max_labels; ++i)
-    {
-        if (la->labels[i].name != NULL && strcmpToSpace(la->labels[i].name, name) == 0)
-        {
-            *adr = la->labels[i].adr;
-            return;
-        }
-    }
-    *adr = -1;
-}
-
-ErrEnum fixup(int* code, LabelArray* ft, LabelArray* la)
-{
-    myAssert(code != NULL && ft != NULL && la != NULL);
-
-    int adr = -1;
-    for (int fixup_n = 0; fixup_n < ft->n_labels; ++fixup_n)
-    {
-        getLabelAdr(la, ft->labels[fixup_n].name, &adr);
-        if (adr == -1)
-            return ERR_INVAL_LABEL;
-        code[ft->labels[fixup_n].adr] = adr;
-    }
     return ERR_OK;
 }

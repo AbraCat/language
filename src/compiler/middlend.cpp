@@ -84,8 +84,8 @@ int simplifyCase(Node* node, NodeChild crit_child, int crit_val, bool replace_wi
         {
             node->type = TYPE_NUM;
             node->val.num = replacement;
-            nodeDtor(node->lft);
-            nodeDtor(node->rgt);
+            // nodeDtor(node->lft);
+            // nodeDtor(node->rgt);
             node->lft = NULL;
             node->rgt = NULL;
             return 1;
@@ -104,8 +104,9 @@ int simplifyCase(Node* node, NodeChild crit_child, int crit_val, bool replace_wi
         expr_node->lft = expr_node->rgt = NULL;
         if (node->lft != NULL) node->lft->parent = node;
         if (node->rgt != NULL) node->rgt->parent = node;
-        nodeDtor(expr_node);
-        nodeDtor(crit_node);
+        
+        // nodeDtor(expr_node);
+        // nodeDtor(crit_node);
         return 1;
     }
     return 0;

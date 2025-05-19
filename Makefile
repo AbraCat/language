@@ -1,4 +1,4 @@
-.PHONY: all clean prc cmp create_dir comp_nasm nasm assemble
+.PHONY: all clean prc cmp create_dir comp_nasm nasm assemble stdlib bin run test test-debug dis
 
 all: exe/proc.exe exe/comp.exe
 
@@ -20,8 +20,30 @@ assemble: all
 	@nasm -felf64 asm/prog.asm -g -o bin/prog.o
 	@ld bin/prog.o -o bin/prog.exe
 
+stdlib:
+	@nasm -felf64 src/stdlib.asm -o bin/stdlib.o
+	@ld bin/stdlib.o --strip-all --strip-debug -o bin/stdlib.exe
+	@strip --remove-section=shstrtab bin/stdlib.exe
+
+test:
+	@nasm -felf64 asm/test.asm -o bin/test.o
+	@ld bin/test.o --strip-all --strip-debug -o bin/test.exe
+	@strip --remove-section=shstrtab bin/test.exe
+
+test-debug:
+	@nasm -felf64 asm/test.asm -o bin/test.o
+	@ld bin/test.o -o bin/test.exe
+
+bin: all stdlib
+	@exe/comp.exe -b
+	@chmod +x bin/prog.exe
+
 run:
 	@bin/prog.exe
+
+# --no-addresses --no-show-raw-insn
+dis:
+	@objdump -D -b binary -mi386 -Mx86-64 --start-address=0x1000 bin/prog.exe > txt/disasm.txt
 
 create_dir:
 	@mkdir d
