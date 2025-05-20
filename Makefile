@@ -1,6 +1,6 @@
-.PHONY: all bin-stdlib run prc dis create_dir clean clean_log
+.PHONY: all bin-stdlib run prc dis create_dir clean clean_log bench
 
-all: exe/front.exe exe/middle.exe exe/spu-back.exe exe/asm-back.exe exe/bin-back.exe exe/proc.exe
+all: exe/front.exe exe/middle.exe exe/spu-back.exe exe/asm-back.exe exe/bin-back.exe exe/proc.exe exe/benchmark.exe
 
 bin-stdlib:
 	@nasm -felf64 src/bin-standard.asm -o bin/stdlib.o
@@ -12,6 +12,13 @@ run:
 
 prc:
 	@exe/proc.exe
+
+bench: all
+	@echo "" > txt/spu-result.txt
+	@echo "" > txt/bin-result.txt
+	@./comp.sh
+	@./comp.sh -b spu
+	@exe/benchmark.exe
 
 # --no-addresses --no-show-raw-insn
 dis:
@@ -90,7 +97,7 @@ clean_log:
 	@mkdir log/dot-img
 	@mkdir log/dump
 
-CC:= gcc
+CC:= g++
 
 COMMON_O_FILES := $(patsubst %.cpp,o/%.o,$(notdir $(wildcard src/*.cpp)))
 STACK_O_FILES  := $(patsubst %.cpp,o/stack/%.o,$(notdir $(wildcard src/stack/*.cpp)))
@@ -128,6 +135,9 @@ exe/asm-back.exe: o/main/main-asm-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BAC
 
 exe/bin-back.exe: o/main/main-bin-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES)
 	@$(CC)    o/main/main-bin-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES) -o exe/bin-back.exe
+
+exe/benchmark.exe: o/main/main-benchmark.o $(COMMON_O_FILES)
+	@$(CC) o/main/main-benchmark.o $(COMMON_O_FILES) -o exe/benchmark.exe
 
 
 include $(wildcard d/*.d)

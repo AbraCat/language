@@ -100,3 +100,29 @@ int intPow(int base, int power)
     if (power % 2 == 0) return temp * temp;
     return temp * temp * base;
 }
+
+ErrEnum readDoubleArr(const char* file_path, double** arr, int n)
+{
+    FILE* file = fopen(file_path, "r");
+    if (file == NULL) return ERR_OPEN_FILE;
+
+    double *a = *arr = (double*)calloc(n, sizeof(double));
+    for (int i = 0; i < n; ++i)
+        fscanf(file, "%lf", a + i);
+    
+    fclose(file);
+    return ERR_OK;
+}
+
+void dispersion(double* a, int n, double* disp, double* expect)
+{
+    double sum = 0, sum_of_sq = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        sum += a[i];
+        sum_of_sq += a[i] * a[i];
+    }
+    double _expect = sum / n;
+    if (expect != NULL) *expect = _expect;
+    *disp = sum_of_sq / n - _expect * _expect;
+}
