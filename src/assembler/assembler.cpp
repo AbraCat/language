@@ -6,7 +6,7 @@
 
 #include <assembler.h>
 #include <common.h>
-#include <error.h>
+#include <my-error.h>
 #include <utils.h>
 #include <str.h>
 

@@ -1,7 +1,7 @@
 #ifndef BIN_BACKEND
 #define BIN_BACKEND
 
-#include <error.h>
+#include <my-error.h>
 #include <tree.h>
 #include <stdlib.h>
 #include <tokenizer.h>

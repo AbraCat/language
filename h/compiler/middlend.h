@@ -1,7 +1,7 @@
 #ifndef MIDDLEND_H
 #define MIDDLEND_H
 
-#include <error.h>
+#include <my-error.h>
 #include <tree.h>
 
 ErrEnum runMiddleEnd(Node *node);

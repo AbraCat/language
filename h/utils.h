@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include <error.h>
+#include <my-error.h>
 
 #define CALLOC_BUF(name, size) returnErr(callocErr((void**)(&name), 1, size))
 

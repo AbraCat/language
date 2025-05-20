@@ -1,9 +1,10 @@
 #include <bin-backend.h>
-#include <str.h>
-#include <standardlib.h>
-#include <tokenizer.h>
-#include <label.h>
 #include <instructions.h>
+#include <label.h>
+#include <my-error.h>
+#include <standardlib.h>
+#include <str.h>
+#include <tokenizer.h>
 
 #include <stdlib.h>
 
@@ -31,12 +32,8 @@ static ErrEnum binCompilePushE(FILE* fout, Node* node);
 
 static BinBackend* b = NULL;
 static const unsigned byte_size = 0x100;
-static const int p_filesz_adr = 0x98, p_memsz_adr = 0xa0, code_size_len = 2;
+static const int e_entry_adr = 0x18, p_filesz_adr = 0x98, p_memsz_adr = 0xa0, code_size_len = 2;
 static const int cmp_op_priority = 1, buflen = 0x3000, name_buf_len = 100, code_offset = 0x1000;
-
-#define BYTE(byte) (b->buf)[b->pos++] = 0x ## byte;
-#define PUT(expr)  (b->buf)[b->pos++] = (expr);
-#define ADR(integer) {*(int*)(b->buf + b->pos) = integer; b->pos += 4; }
 
 #define DEFINE_LABEL(name) returnErr(addNumberedLabel(name, label_num, 0));
 #define FIXUP_LABEL(name)\
@@ -57,7 +54,7 @@ static ErrEnum binBackendCtor(BinBackend** backend, FILE* fout, NameArr* name_ar
     b->name_buf = (char*)calloc(name_buf_len, 1);
 
     returnErr(getBinStdLib(fout, b->buf));
-    b->pos = ((short*)(b->buf))[12];
+    b->pos = *(short*)(b->buf + e_entry_adr);
     b->label_cnt = 0;
     b->name_arr = name_arr;
 
@@ -322,7 +319,8 @@ static ErrEnum binCompileE(FILE* fout, Node* node)
     }
     if (node->type == TYPE_FUNC)
     {
-        if (node->lft != NULL) returnErr(binCompileCommaSeparated(fout, node->lft, binCompilePushE));
+        if (node->lft != NULL) returnErr(binCompileCommaSeparated(fout, node->lft, 
+            binCompilePushE));
 
         writeBytes(CALL);
         FIXUP_FUNCTION_LABEL(node->val.func_name)

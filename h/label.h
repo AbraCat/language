@@ -1,7 +1,7 @@
 #ifndef LABEL_H
 #define LABEL_H
 
-#include <error.h>
+#include <my-error.h>
 
 struct Label
 {

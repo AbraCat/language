@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include <processor.h>
-#include <error.h>
+#include <my-error.h>
 #include <options.h>
 
 const char *std_proc_fcode = "txt/code.txt";

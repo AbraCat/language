@@ -4,7 +4,7 @@
 
 #include <disassembler.h>
 #include <common.h>
-#include <error.h>
+#include <my-error.h>
 
 ErrEnum disasmCtor(Disasm* dis)
 {

@@ -1,7 +1,7 @@
 #ifndef FRONTEND_H
 #define FRONTEND_H
 
-#include <error.h>
+#include <my-error.h>
 #include <tokenizer.h>
 
 /*

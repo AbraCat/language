@@ -1,7 +1,7 @@
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
-#include <error.h>
+#include <my-error.h>
 #include <tree.h>
 #include <name.h>
 

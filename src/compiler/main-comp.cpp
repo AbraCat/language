@@ -4,7 +4,7 @@
 #include <options.h>
 #include <assembler.h>
 #include <disassembler.h>
-#include <error.h>
+#include <my-error.h>
 
 #include <frontend.h>
 #include <tree.h>

@@ -1,5 +1,5 @@
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef MY_ERROR_H
+#define MY_ERROR_H
 
 // #define MY_NDEBUG
 
@@ -37,4 +37,4 @@ void myAssertFn(int expr, const char* str_expr, const char* file, int line, cons
 void getErrDescr(ErrEnum code, const char** descr);
 void handleErrFn(ErrEnum code, const char* file, int line, const char* function);
 
-#endif // ERROR_H
+#endif // MY_ERROR_H

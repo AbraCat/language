@@ -5,7 +5,7 @@
 #include <processor.h>
 #include <common.h>
 #include <colors.h>
-#include <error.h>
+#include <my-error.h>
 #include <utils.h>
 
 static const int ram_size_sqrt = 20, max_rec_depth = 50;

@@ -1,7 +1,7 @@
 #ifndef STANDARTLIB_H
 #define STANDARTLIB_H
 
-#include <error.h>
+#include <my-error.h>
 #include <stdio.h>
 #include <name.h>
 

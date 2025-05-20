@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stack.h>
 
-#include <error.h>
+#include <my-error.h>
 #include <common.h>
 
 struct Proc

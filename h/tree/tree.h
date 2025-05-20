@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include <error.h>
+#include <my-error.h>
 
 extern const int n_ops, n_types, name_buf_size;
 const int small_buf_size = 100;

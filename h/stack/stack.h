@@ -1,7 +1,7 @@
 #ifndef STACK_H
 #define STACK_H
 
-#include <error.h>
+#include <my-error.h>
 
 #define ST_NDEBUG
 

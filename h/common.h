@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include <error.h>
+#include <my-error.h>
 
 const int n_regs = 4, max_cmds = 500, 
 MEM_BIT = 0x80, REG_BIT = 0x40, 

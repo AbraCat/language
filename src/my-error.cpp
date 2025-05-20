@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <error.h>
+#include <my-error.h>
 #include <colors.h>
 
 static ErrDescr err_arr[] = {

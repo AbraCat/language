@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include <error.h>
+#include <my-error.h>
 
 extern FILE* fdump;
 extern const char log_path[];

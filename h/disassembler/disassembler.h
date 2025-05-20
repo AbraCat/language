@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include <common.h>
-#include <error.h>
+#include <my-error.h>
 
 struct Disasm
 {
