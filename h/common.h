@@ -5,7 +5,7 @@
 
 #include <my-error.h>
 
-const int n_regs = 4, max_cmds = 500, 
+const int n_regs = 4, max_cmds = 10000, 
 MEM_BIT = 0x80, REG_BIT = 0x40, 
 IMM_BIT = 0x20, MASK_CMD = 0x1F, MASK_ARGT = 0xE0;
 

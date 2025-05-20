@@ -8,7 +8,7 @@
 #include <my-error.h>
 #include <utils.h>
 
-static const int ram_size_sqrt = 20, max_rec_depth = 50;
+static const int ram_size_sqrt = 50, max_rec_depth = 100;
 
 ErrEnum procCtor(Proc* prc)
 {

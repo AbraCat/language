@@ -9,12 +9,12 @@
 
 struct BinBackend
 {
-    int pos, label_cnt, n_vars, n_args;
+    int pos, label_cnt, n_args;
     NameArr* name_arr;
     char *buf = NULL, *name_buf = NULL;
     LabelArray *la = NULL, *ft = NULL;
 };
 
-ErrEnum runBinBackend(Node* tree, NameArr* name_arr, FILE* fout);
+ErrEnum runBinBackend(Node* tree, FILE* fout);
 
 #endif // BIN_BACKEND

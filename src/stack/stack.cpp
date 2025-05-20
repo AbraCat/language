@@ -237,6 +237,10 @@ ErrEnum stPop(Stack* st, StackElem* elem)
 
 ErrEnum stErr(Stack* st)
 {
+    #ifdef ST_NDEBUG
+    return ERR_OK;
+    #endif // ST_NDEBUG
+    
     if (st == NULL)
     {
         return ERR_NULL_STACK;

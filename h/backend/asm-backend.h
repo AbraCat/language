@@ -6,6 +6,6 @@
 #include <stdlib.h>
 #include <tokenizer.h>
 
-ErrEnum runAsmBackend(Node* tree, NameArr* name_arr, FILE* fout);
+ErrEnum runAsmBackend(Node* tree, FILE* fout);
 
 #endif // ASM_BACKEND

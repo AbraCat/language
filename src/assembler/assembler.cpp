@@ -10,6 +10,8 @@
 #include <utils.h>
 #include <str.h>
 
+void debug(){};
+
 const int n_cmds = 24, buffer_size = 50;
 
 #define CMD_ARRAY_CASE(name, type) {CMD_ ## name, CMDT_ ## type, #name, sizeof #name - 1},
@@ -162,6 +164,7 @@ ErrEnum getArg(Asm* ase)
     else
     {
         ase->code[ase->ip] |= REG_BIT;
+        if (ase->ip >= 505) debug();
         getRegNum(str_ptr1, ase->code + ase->ip + 1);
         if (ase->code[ase->ip + 1] == INVAL_REG)
             return ERR_INVAL_REG_NAME;
@@ -222,8 +225,6 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
         ase.prog_text_pos += len;                                \
         continue;
 
-
-
     myAssert(fin != NULL && fout != NULL);
 
     int scanf_res = 0, pos_incr = 0, eof = 0, len = 0, cmd_ind = 0;
@@ -242,12 +243,16 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
     clearComments(ase.prog_text, ';');
     while (1)
     {
+        // if (ase.ip >= 505) debug();
+        // printf("%d %d\n", ase.la->n_labels, ase.ip);
+        // if (ase.ip == 505) printf("%.100s\n", ase.prog_text + ase.prog_text_pos);
         skipTrailSpace(ase.prog_text, &ase.prog_text_pos, &eof);
         if (eof) break;
 
         strlenToSpace(ase.prog_text + ase.prog_text_pos, &len);
         if (ase.prog_text[ase.prog_text_pos + len - 1] == label_end)
         {
+            // if (ase.ip >= 526) printf("%s\n", ase.prog_text + ase.prog_text_pos);
             addLabel(ase.la, ase.ip, ase.prog_text + ase.prog_text_pos, 0);
             ase.prog_text_pos += len;
             continue;
@@ -267,7 +272,6 @@ ErrEnum runAsm(FILE* fin, FILE* fout)
         asmDtor(&ase);
         return ERR_INVAL_CMD;
     }
-
     returnErr(fixup((char*)ase.code, ase.ft, ase.la, 0));
     if (fwrite(ase.code, sizeof(int), ase.ip, fout) != ase.ip)
         return ERR_IO;

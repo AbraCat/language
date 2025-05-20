@@ -1,11 +1,9 @@
 #include <asm-backend.h>
 #include <str.h>
 #include <standardlib.h>
-#include <tokenizer.h>
+#include <backend.h>
 
-static ErrEnum asmCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*asmCompile)(FILE*, Node*));
 static ErrEnum asmCompileFuncDecl(FILE* fout, Node* node);
-static ErrEnum asmCheckFuncParam(FILE* fout, Node* node);
 static ErrEnum asmCompileBody(FILE* fout, Node* node);
 static ErrEnum asmCompileS(FILE* fout, Node* node);
 
@@ -15,13 +13,13 @@ static ErrEnum asmCompileE(FILE* fout, Node* node);
 static ErrEnum asmCompilePushE(FILE* fout, Node* node);
 
 static const int st_size = 400, cmp_op_priority = 1;
-static int label_cnt = 0, n_vars = 0, n_args = 0;
+static int label_cnt = 0, n_args = 0;
 static NameArr* namearr = NULL;
 
-ErrEnum runAsmBackend(Node* tree, NameArr* name_arr, FILE* fout)
+ErrEnum runAsmBackend(Node* tree, FILE* fout)
 {
-    myAssert(tree != NULL && fout != NULL && name_arr != NULL);
-    namearr = name_arr;
+    myAssert(tree != NULL && fout != NULL);
+    returnErr(fillFuncArr(&namearr, tree));
 
     fprintf(fout,   "global _start\n"
                     "section .text\n\n"
@@ -30,25 +28,7 @@ ErrEnum runAsmBackend(Node* tree, NameArr* name_arr, FILE* fout)
                     "push rax\n"
                     "call exit\n");
     asmPrintStdLib(fout);
-    return asmCompileCommaSeparated(fout, tree, asmCompileFuncDecl);
-}
-
-static ErrEnum asmCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*asmCompile)(FILE*, Node*))
-{
-    myAssert(fout != NULL && node != NULL);
-
-    Node* cur_node = node;
-    while (cur_node != NULL && cur_node->type == TYPE_OP && cur_node->val.op_code == OP_COMMA) cur_node = cur_node->lft;
-    returnErr(asmCompile(fout, cur_node));
-    if (cur_node == node) return ERR_OK;
-
-    while (1)
-    {
-        cur_node = cur_node->parent;
-        returnErr(asmCompile(fout, cur_node->rgt));
-        if (cur_node == node) break;
-    }
-    return ERR_OK;
+    return compileCommaSeparated(fout, tree, asmCompileFuncDecl);
 }
 
 static ErrEnum asmCompileFuncDecl(FILE* fout, Node* node)
@@ -61,7 +41,7 @@ static ErrEnum asmCompileFuncDecl(FILE* fout, Node* node)
 
     n_vars = 0;
     myAssert(node->rgt != NULL && node->rgt->type == TYPE_OP && node->rgt->val.op_code == OP_OPEN_BRACKET);
-    if (node->rgt->lft != NULL) returnErr(asmCompileCommaSeparated(fout, node->rgt->lft, asmCheckFuncParam));
+    if (node->rgt->lft != NULL) returnErr(compileCommaSeparated(fout, node->rgt->lft, checkFuncParam));
     n_args = n_vars;
     fprintf(fout, "push rbp\nmov rbp, rsp\n");
     returnErr(asmCompileBody(fout, node->rgt->rgt));
@@ -72,19 +52,10 @@ static ErrEnum asmCompileFuncDecl(FILE* fout, Node* node)
     return ERR_OK;
 }
 
-static ErrEnum asmCheckFuncParam(FILE* fout, Node* node)
-{
-    myAssert(fout != NULL && node != NULL);
-    myAssert(node->type == TYPE_VAR);
-    myAssert(node->val.var_id == n_vars);
-    ++n_vars;
-    return ERR_OK;
-}
-
 static ErrEnum asmCompileBody(FILE* fout, Node* node)
 {
     myAssert(fout != NULL);
-    if (node != NULL) returnErr(asmCompileCommaSeparated(fout, node, asmCompileS));
+    if (node != NULL) returnErr(compileCommaSeparated(fout, node, asmCompileS));
     return ERR_OK;
 }
 
@@ -187,7 +158,7 @@ static ErrEnum asmCompileE(FILE* fout, Node* node)
     }
     if (node->type == TYPE_FUNC)
     {
-        if (node->lft != NULL) returnErr(asmCompileCommaSeparated(fout, node->lft, asmCompilePushE));
+        if (node->lft != NULL) returnErr(compileCommaSeparated(fout, node->lft, asmCompilePushE));
         fputs("call ", fout);
         printName(fout, node->val.func_name);
 

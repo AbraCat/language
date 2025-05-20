@@ -38,8 +38,8 @@ void labelArrayDtor(LabelArray* la)
 ErrEnum addLabel(LabelArray* la, int adr, const char* name, int work_with_names)
 {
     if (la->n_labels >= la->max_labels) return ERR_TOO_MANY_NAMES;
-    la->labels[la->n_labels].adr = adr;
 
+    la->labels[la->n_labels].adr = adr;
     la->labels[la->n_labels].name = la->name_buf + la->n_labels * max_label_len;
     if (work_with_names) nameCpy(la->labels[la->n_labels].name, name);
     else strncpyToSpace(la->labels[la->n_labels].name, name, max_label_len);
@@ -80,11 +80,7 @@ ErrEnum fixup(char* code, LabelArray* ft, LabelArray* la, int work_with_names)
     for (int fixup_n = 0; fixup_n < ft->n_labels; ++fixup_n)
     {
         getLabelAdr(la, ft->labels[fixup_n].name, &adr, work_with_names);
-        if (adr == -1)
-        {
-            printf("name: %s\n", ft->labels[fixup_n].name);
-            return ERR_INVAL_LABEL;
-        }
+        if (adr == -1) return ERR_INVAL_LABEL;
         if (work_with_names)
         {
             code[ft->labels[fixup_n].adr] = adr;

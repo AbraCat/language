@@ -1,10 +1,9 @@
+#include <spu-backend.h>
 #include <backend.h>
 #include <str.h>
 #include <standardlib.h>
 
-static ErrEnum compileCommaSeparated(FILE* fout, Node* node, ErrEnum (*compile)(FILE*, Node*));
 static ErrEnum compileFuncDecl(FILE* fout, Node* node);
-static ErrEnum checkFuncParam(FILE* fout, Node* node);
 static ErrEnum compileBody(FILE* fout, Node* node);
 static ErrEnum compileS(FILE* fout, Node* node);
 
@@ -13,32 +12,15 @@ static ErrEnum compileWhile(FILE* fout, Node* node);
 static ErrEnum compileE(FILE* fout, Node* node);
 
 static const int st_size = 400, cmp_op_priority = 1;
-static int label_cnt = 0, n_vars = 0;
 static const char trash_reg[] = "AX", ret_val_reg[] = "BX", frame_adr_reg[] = "CX";
+
+static int label_cnt = 0;
 
 ErrEnum runBackend(Node* tree, FILE* fout)
 {
     myAssert(tree != NULL && fout != NULL);
     printStdLib(fout, trash_reg, ret_val_reg, frame_adr_reg);
     return compileCommaSeparated(fout, tree, compileFuncDecl);
-}
-
-static ErrEnum compileCommaSeparated(FILE* fout, Node* node, ErrEnum (*compile)(FILE*, Node*))
-{
-    myAssert(fout != NULL && node != NULL);
-
-    Node* cur_node = node;
-    while (cur_node != NULL && cur_node->type == TYPE_OP && cur_node->val.op_code == OP_COMMA) cur_node = cur_node->lft;
-    returnErr(compile(fout, cur_node));
-    if (cur_node == node) return ERR_OK;
-
-    while (1)
-    {
-        cur_node = cur_node->parent;
-        returnErr(compile(fout, cur_node->rgt));
-        if (cur_node == node) break;
-    }
-    return ERR_OK;
 }
 
 static ErrEnum compileFuncDecl(FILE* fout, Node* node)
@@ -58,15 +40,6 @@ static ErrEnum compileFuncDecl(FILE* fout, Node* node)
     for (int cnt = 0; cnt < n_vars; ++cnt)
         fprintf(fout, "POP %s\n", trash_reg);
     fprintf(fout, "POP %s\nPUSH 0\nRET\n", frame_adr_reg);
-    return ERR_OK;
-}
-
-static ErrEnum checkFuncParam(FILE* fout, Node* node)
-{
-    myAssert(fout != NULL && node != NULL);
-    myAssert(node->type == TYPE_VAR);
-    myAssert(node->val.var_id == n_vars);
-    ++n_vars;
     return ERR_OK;
 }
 

@@ -5,6 +5,7 @@
 #include <standardlib.h>
 #include <str.h>
 #include <tokenizer.h>
+#include <backend.h>
 
 #include <stdlib.h>
 
@@ -16,12 +17,10 @@ static void writeInt(unsigned n);
 static void fixCodeSize(BinBackend* b);
 static ErrEnum addNumberedLabel(const char* name, int label_num, int fixup);
 
-static ErrEnum binBackendCtor(BinBackend** b, FILE* fout, NameArr* name_arr);
+static ErrEnum binBackendCtor(BinBackend** b, FILE* fout, Node* tree);
 static void binBackendDtor(BinBackend* b);
 
-static ErrEnum binCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*binCompile)(FILE*, Node*));
 static ErrEnum binCompileFuncDecl(FILE* fout, Node* node);
-static ErrEnum asmCheckFuncParam(FILE* fout, Node* node);
 static ErrEnum binCompileBody(FILE* fout, Node* node);
 static ErrEnum binCompileS(FILE* fout, Node* node);
 
@@ -47,7 +46,7 @@ static const int cmp_op_priority = 1, buflen = 0x3000, name_buf_len = 100, code_
     reserveAddress();\
 }
 
-static ErrEnum binBackendCtor(BinBackend** backend, FILE* fout, NameArr* name_arr)
+static ErrEnum binBackendCtor(BinBackend** backend, FILE* fout, Node* tree)
 {
     b = *backend = (BinBackend*)calloc(1, sizeof(BinBackend));
     b->buf = (char*)calloc(buflen, 1);
@@ -56,10 +55,10 @@ static ErrEnum binBackendCtor(BinBackend** backend, FILE* fout, NameArr* name_ar
     returnErr(getBinStdLib(fout, b->buf));
     b->pos = *(short*)(b->buf + e_entry_adr);
     b->label_cnt = 0;
-    b->name_arr = name_arr;
 
     returnErr(labelArrayCtor(&b->la));
     returnErr(labelArrayCtor(&b->ft));
+    returnErr(fillFuncArr(&b->name_arr, tree));
 
     for (int i = 0; i < 3; ++i)
         addLabel(b->la, b->name_arr->names[i].adr, b->name_arr->names[i].name_str, 1);
@@ -73,10 +72,10 @@ static void binBackendDtor(BinBackend* b)
     free(b->name_buf);
 }
 
-ErrEnum runBinBackend(Node* tree, NameArr* name_arr, FILE* fout)
+ErrEnum runBinBackend(Node* tree, FILE* fout)
 {
-    myAssert(tree != NULL && fout != NULL && name_arr != NULL);
-    returnErr(binBackendCtor(&b, fout, name_arr));
+    myAssert(tree != NULL && fout != NULL);
+    returnErr(binBackendCtor(&b, fout, tree));
 
     writeBytes(CALL); // call main
     FIXUP_FUNCTION_LABEL("main")
@@ -84,7 +83,7 @@ ErrEnum runBinBackend(Node* tree, NameArr* name_arr, FILE* fout)
     writeBytes(CALL); // call exit
     FIXUP_FUNCTION_LABEL("exit")
 
-    returnErr(binCompileCommaSeparated(fout, tree, binCompileFuncDecl));
+    returnErr(compileCommaSeparated(fout, tree, binCompileFuncDecl));
     fixCodeSize(b);
     returnErr(fixup(b->buf, b->ft, b->la, 1));
     fwrite(b->buf, 1, b->pos, fout);
@@ -129,24 +128,6 @@ static ErrEnum addNumberedLabel(const char* name, int label_num, int fixup)
     return addLabel(fixup ? b->ft : b->la, b->pos, b->name_buf, 1);
 }
 
-static ErrEnum binCompileCommaSeparated(FILE* fout, Node* node, ErrEnum (*binCompile)(FILE*, Node*))
-{
-    myAssert(fout != NULL && node != NULL);
-
-    Node* cur_node = node;
-    while (cur_node != NULL && cur_node->type == TYPE_OP && cur_node->val.op_code == OP_COMMA) cur_node = cur_node->lft;
-    returnErr(binCompile(fout, cur_node));
-    if (cur_node == node) return ERR_OK;
-
-    while (1)
-    {
-        cur_node = cur_node->parent;
-        returnErr(binCompile(fout, cur_node->rgt));
-        if (cur_node == node) break;
-    }
-    return ERR_OK;
-}
-
 static ErrEnum binCompileFuncDecl(FILE* fout, Node* node)
 {
     myAssert(fout != NULL && node != NULL && node->type == TYPE_OP && node->val.op_code == OP_FUNC);
@@ -157,19 +138,19 @@ static ErrEnum binCompileFuncDecl(FILE* fout, Node* node)
     name_struct->adr = b->pos;
     addLabel(b->la, b->pos, name_struct->name_str, 1);
     
-    b->n_vars = 0;
+    n_vars = 0;
     myAssert(node->rgt != NULL && node->rgt->type == TYPE_OP && node->rgt->val.op_code == OP_OPEN_BRACKET);
-    if (node->rgt->lft != NULL) returnErr(binCompileCommaSeparated(fout, node->rgt->lft, asmCheckFuncParam));
-    b->n_args = b->n_vars;
+    if (node->rgt->lft != NULL) returnErr(compileCommaSeparated(fout, node->rgt->lft, checkFuncParam));
+    b->n_args = n_vars;
 
     writeBytes(PUSH_RBP);
     writeBytes(MOV_RBP_RSP);
     returnErr(binCompileBody(fout, node->rgt->rgt));
 
-    if (b->n_vars != b->n_args)
+    if (n_vars != b->n_args)
     {
         writeBytes(ADD_RSP_NUM);
-        writeByte(8 * (b->n_vars - b->n_args));
+        writeByte(8 * (n_vars - b->n_args));
     }
     writeBytes(POP_RBP);
     writeBytes(XOR_RAX_RAX);
@@ -178,20 +159,10 @@ static ErrEnum binCompileFuncDecl(FILE* fout, Node* node)
     return ERR_OK;
 }
 
-static ErrEnum asmCheckFuncParam(FILE* fout, Node* node)
-{
-    myAssert(fout != NULL && node != NULL);
-    myAssert(node->type == TYPE_VAR);
-    myAssert(node->val.var_id == b->n_vars);
-
-    ++b->n_vars;
-    return ERR_OK;
-}
-
 static ErrEnum binCompileBody(FILE* fout, Node* node)
 {
     myAssert(fout != NULL);
-    if (node != NULL) returnErr(binCompileCommaSeparated(fout, node, binCompileS));
+    if (node != NULL) returnErr(compileCommaSeparated(fout, node, binCompileS));
     return ERR_OK;
 }
 
@@ -203,12 +174,12 @@ static ErrEnum binCompileS(FILE* fout, Node* node)
     {
         case OP_VAR:
             myAssert(node->lft != NULL && node->lft->type == TYPE_VAR);
-            myAssert(node->lft->val.var_id == b->n_vars);
+            myAssert(node->lft->val.var_id == n_vars);
 
             writeBytes(PUSH_NUM);
             writeByte(node->lft->val.var_id);
 
-            ++b->n_vars;
+            ++n_vars;
             return ERR_OK;
         case OP_IF:
             returnErr(binCompileIf(fout, node));
@@ -220,10 +191,10 @@ static ErrEnum binCompileS(FILE* fout, Node* node)
             myAssert(node->lft != NULL);
             returnErr(binCompileE(fout, node->lft));
             
-            if (b->n_vars != b->n_args)
+            if (n_vars != b->n_args)
             {
                 writeBytes(ADD_RSP_NUM);
-                writeByte(8 * (b->n_vars - b->n_args));
+                writeByte(8 * (n_vars - b->n_args));
             }
             writeBytes(POP_RBP);
             writeBytes(RET);
@@ -319,7 +290,7 @@ static ErrEnum binCompileE(FILE* fout, Node* node)
     }
     if (node->type == TYPE_FUNC)
     {
-        if (node->lft != NULL) returnErr(binCompileCommaSeparated(fout, node->lft, 
+        if (node->lft != NULL) returnErr(compileCommaSeparated(fout, node->lft, 
             binCompilePushE));
 
         writeBytes(CALL);
