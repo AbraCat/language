@@ -4,12 +4,16 @@
 #include <options.h>
 #include <my-error.h>
 #include <tree.h>
+
+#include <standardlib.h>
 #include <bin-backend.h>
 
 const char *std_tree_name = "./txt/tree.txt", *std_bin_name = "bin/prog.exe";
 
 int main(int argc, const char* argv[])
 {
+    // return stripStdlib();
+    
     const int n_opts = 2;
     Option opts[] = {{"-i", "--input"}, {"-o", "--output"}};
     handleErr(parseOpts(argc, argv, opts, n_opts));
@@ -22,7 +26,7 @@ int main(int argc, const char* argv[])
     Node *tree = NULL;
     handleErr(treeRead(tree_name, &tree, NULL));
 
-    FILE* bin_file = fopen(std_bin_name, "w");
+    FILE* bin_file = fopen(bin_name, "w");
     handleErr(runBinBackend(tree, bin_file));
 
     fclose(bin_file);

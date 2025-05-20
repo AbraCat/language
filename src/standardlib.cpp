@@ -1,33 +1,92 @@
 #include <standardlib.h>
+#include <utils.h>
 
 #include <stdlib.h>
+#include <elf.h>
 
-static const int code_offset = 0x1000;
-static const int p_offset_adr = 0x80;
-static const int shoff_adr = 0x28, shoff_len = 8, shentsize_adr = 0x3a, shentsize_len = 6;
-
+static const int virtual_adr = 0x400000, code_offset = 0x1000, ph_align = 0x1000;
 static const int input_offset = 0, output_offset = 2, exit_offset = 7;
-
 static const int stdlib_buflen = 10000, max_bin_stdlib_len = 10000;
-static const char asm_std_lib[] = "src/asm-standard.asm", bin_std_lib[] = "bin/stdlib.exe";
+static const char asm_std_lib[] = "src/asm-standard.asm", stdlib_full[] = "bin/stdlib.exe",
+                  stdlib_stripped[] = "bin/stdlib-stripped.exe";
 
-void removeSectionHeader(char* buf)
+ErrEnum stripStdlib()
 {
-    for (int i = shoff_adr; i < shoff_adr + shoff_len; ++i) buf[i] = 0;
-    for (int i = shentsize_adr; i < shentsize_adr + shentsize_len; ++i) buf[i] = 0;
-}
+    int file_size = 0;
+    char* buf = NULL;
+    returnErr(readFile(stdlib_full, (void**)&buf, &file_size));
 
-ErrEnum getBinStdLib(FILE* file, char* buf)
-{
-    FILE* stdlib_file = fopen(bin_std_lib, "r");
-    if (stdlib_file == NULL) return ERR_OPEN_FILE;
-    int n_read = fread(buf, 1, max_bin_stdlib_len, stdlib_file);
-    fclose(stdlib_file);
+    Elf64_Ehdr* hdr = (Elf64_Ehdr*)buf;
 
-    myAssert(*(int*)(buf + p_offset_adr) == code_offset);
-    removeSectionHeader(buf);
+    int phdr_adr = hdr->e_phoff + hdr->e_phentsize; // second entry
+    Elf64_Phdr* prog_header = (Elf64_Phdr*)(buf + phdr_adr);
+
+    int p_vaddr = prog_header->p_vaddr;
+    int p_offset = prog_header->p_offset;
+
+    int entrypoint = hdr->e_entry - (p_vaddr - p_offset);
+
+    FILE *fout = fopen(stdlib_stripped, "w");
+    if (fout == NULL) return ERR_OPEN_FILE;
+    fwrite(buf + p_offset, 1, entrypoint - p_offset, fout);
+    fclose(fout);
 
     return ERR_OK;
+}
+
+void writeHeader(char* buf, int entrypoint)
+{
+    Elf64_Ehdr* hdr = (Elf64_Ehdr*)buf;
+    hdr->e_ident[EI_MAG0] = 0x7f; // magic bytes
+    hdr->e_ident[EI_MAG1] = 'E';
+    hdr->e_ident[EI_MAG2] = 'L';
+    hdr->e_ident[EI_MAG3] = 'F';
+    hdr->e_ident[EI_CLASS] = 2; // 64 bit
+    hdr->e_ident[EI_DATA] = 1; // little endian
+    hdr->e_ident[EI_VERSION] = 1;
+    hdr->e_ident[EI_OSABI] = 0;
+    
+    hdr->e_type = ET_EXEC;
+    hdr->e_machine = 0x3e; // amd x86-64
+    hdr->e_version = 1;
+    hdr->e_entry = virtual_adr + code_offset + entrypoint;
+
+    hdr->e_phoff = 0x40;
+    hdr->e_ehsize = 0x40;
+    hdr->e_phentsize = 0x38;
+    hdr->e_phnum = 1;
+
+    writeProgramHeader(buf + hdr->e_phoff, PF_R | PF_X, 0);
+}
+
+void writeProgramHeader(char* buf, int flags, int offset)
+{
+    Elf64_Phdr* ph = (Elf64_Phdr*)buf;
+    ph->p_type = PT_LOAD;
+    ph->p_flags = flags;
+    ph->p_offset = offset;
+    ph->p_vaddr = virtual_adr + offset;
+    ph->p_paddr = virtual_adr + offset;
+    ph->p_align = ph_align;
+}
+
+ErrEnum getHeaderAndStdlib(char* buf)
+{
+    FILE* stdlib_file = fopen(stdlib_stripped, "r");
+    if (stdlib_file == NULL) return ERR_OPEN_FILE;
+    int stdlib_size = fread(buf + code_offset, 1, max_bin_stdlib_len, stdlib_file);
+
+    writeHeader(buf, stdlib_size);
+    fclose(stdlib_file);
+    return ERR_OK;
+}
+
+void patchCodeSize(char* buf, int size)
+{
+    Elf64_Ehdr* hdr = (Elf64_Ehdr*)buf;
+    int ph_adr = hdr->e_phoff;
+    Elf64_Phdr* ph = (Elf64_Phdr*)(buf + ph_adr);
+    ph->p_filesz = ph->p_memsz = size;
 }
 
 ErrEnum insertStdFunction(NameArr* name_arr, const char* name, int n_args, int offset)

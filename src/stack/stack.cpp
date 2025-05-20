@@ -31,7 +31,7 @@ ErrEnum stCtorNDebug(Stack* st, int capacity)
 
     stUpdateHash(st);
 
-    returnErr(stErr(st));
+    ST_ON_DEBUG(returnErr(stErr(st)));
     return ERR_OK;
 }
 
@@ -196,7 +196,7 @@ ErrEnum resize(Stack* st, int new_capacity)
 
 ErrEnum stPush(Stack* st, StackElem elem)
 {
-    returnErr(stErr(st));
+    ST_ON_DEBUG(returnErr(stErr(st)));
 
     if (st->size == st->capacity)
     {
@@ -207,13 +207,13 @@ ErrEnum stPush(Stack* st, StackElem elem)
     st->data[st->size++] = elem;
 
     stUpdateHash(st);
-    returnErr(stErr(st));
+    ST_ON_DEBUG(returnErr(stErr(st)));
     return ERR_OK;
 }
 
 ErrEnum stPop(Stack* st, StackElem* elem)
 {
-    returnErr(stErr(st));
+    ST_ON_DEBUG(returnErr(stErr(st)));
 
     if (st->size == 0)
         return ERR_STACK_UNDERFLOW;
@@ -231,7 +231,7 @@ ErrEnum stPop(Stack* st, StackElem* elem)
     // }
 
     stUpdateHash(st);
-    returnErr(stErr(st));
+    ST_ON_DEBUG(returnErr(stErr(st)));
     return ERR_OK;
 }
 

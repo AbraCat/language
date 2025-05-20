@@ -14,7 +14,6 @@ static void writeBytes(unsigned n);
 static void reserveAddress();
 static void writeInt(unsigned n);
 
-static void fixCodeSize(BinBackend* b);
 static ErrEnum addNumberedLabel(const char* name, int label_num, int fixup);
 
 static ErrEnum binBackendCtor(BinBackend** b, FILE* fout, Node* tree);
@@ -52,7 +51,7 @@ static ErrEnum binBackendCtor(BinBackend** backend, FILE* fout, Node* tree)
     b->buf = (char*)calloc(buflen, 1);
     b->name_buf = (char*)calloc(name_buf_len, 1);
 
-    returnErr(getBinStdLib(fout, b->buf));
+    returnErr(getHeaderAndStdlib(b->buf));
     b->pos = *(short*)(b->buf + e_entry_adr);
     b->label_cnt = 0;
 
@@ -84,7 +83,7 @@ ErrEnum runBinBackend(Node* tree, FILE* fout)
     FIXUP_FUNCTION_LABEL("exit")
 
     returnErr(compileCommaSeparated(fout, tree, binCompileFuncDecl));
-    fixCodeSize(b);
+    patchCodeSize(b->buf, b->pos);
     returnErr(fixup(b->buf, b->ft, b->la, 1));
     fwrite(b->buf, 1, b->pos, fout);
 
@@ -114,12 +113,6 @@ static void writeInt(unsigned n)
         b->buf[b->pos++] = n % byte_size;
         n /= byte_size;
     }
-}
-
-static void fixCodeSize(BinBackend* b)
-{
-    *(short*)(b->buf + p_filesz_adr) = b->pos - code_offset;
-    *(short*)(b->buf + p_memsz_adr) = b->pos - code_offset;
 }
 
 static ErrEnum addNumberedLabel(const char* name, int label_num, int fixup)
