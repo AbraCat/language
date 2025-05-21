@@ -1,6 +1,7 @@
 #include <utils.h>
 
-#include <iostream>
+#include <stdio.h>
+#include <math.h>
 
 int n_tests = 5;
 
@@ -19,6 +20,7 @@ int main()
     dispersion(spu_result, n_tests, &spu_disp, &spu_exp);
     dispersion(bin_result, n_tests, &bin_disp, &bin_exp);
 
-    printf("SPU: %lf +- %lf\nBIN: %lf += %lf\n", spu_exp, spu_disp, bin_exp, bin_disp);
+    printf("SPU: %lf +- %lf\nBIN: %lf +- %lf\n",
+        spu_exp, sqrt(spu_disp), bin_exp, sqrt(bin_disp));
     return 0;
 }

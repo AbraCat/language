@@ -28,10 +28,9 @@ ErrEnum stCtorNDebug(Stack* st, int capacity)
     )
 
     returnErr(resize(st, capacity));
-
     stUpdateHash(st);
 
-    ST_ON_DEBUG(returnErr(stErr(st)));
+    stAssert(stErr(st) == ERR_OK);
     return ERR_OK;
 }
 
@@ -57,10 +56,9 @@ ErrEnum stCtorDebug(Stack* st, int capacity, const char* file_born, int line_bor
     st->data = NULL;
 
     returnErr(resize(st, capacity));
-
     stUpdateHash(st);
 
-    returnErr(stErr(st));
+    stAssert(stErr(st) == ERR_OK);
     return ERR_OK;
 }
 
@@ -117,15 +115,11 @@ void stDtor(Stack* st)
 static int hashFn(char* arr, int size)
 {
     int hash = 5381;
-
     if (arr == NULL)
         return hash;
 
     for (int i = 0; i < size; ++i)
-    {
         hash = (hash << 5) + hash + arr[i];
-    }
-
     return hash;
 }
 
@@ -172,11 +166,7 @@ ErrEnum resize(Stack* st, int new_capacity)
         new_data = (StackElem*)realloc(st->data == NULL ? NULL : st->data - 1, (new_capacity + 2) * sizeof(StackElem)) + 1;
     )
 
-    if (new_data == NULL)
-    {
-        return ERR_MEM;
-    }
-
+    if (new_data == NULL) return ERR_MEM;
     st->data = new_data;
 
     ST_ON_CANARY
@@ -186,9 +176,7 @@ ErrEnum resize(Stack* st, int new_capacity)
     ST_ON_DEBUG
     (
         for (int i = st->size; i < new_capacity; ++i)
-        {
             st->data[i] = poison_val;
-        }
     )
 
     return ERR_OK;
@@ -196,7 +184,7 @@ ErrEnum resize(Stack* st, int new_capacity)
 
 ErrEnum stPush(Stack* st, StackElem elem)
 {
-    ST_ON_DEBUG(returnErr(stErr(st)));
+    stAssert(stErr(st) == ERR_OK);
 
     if (st->size == st->capacity)
     {
@@ -207,13 +195,13 @@ ErrEnum stPush(Stack* st, StackElem elem)
     st->data[st->size++] = elem;
 
     stUpdateHash(st);
-    ST_ON_DEBUG(returnErr(stErr(st)));
+    stAssert(stErr(st) == ERR_OK);
     return ERR_OK;
 }
 
 ErrEnum stPop(Stack* st, StackElem* elem)
 {
-    ST_ON_DEBUG(returnErr(stErr(st)));
+    stAssert(stErr(st) == ERR_OK);
 
     if (st->size == 0)
         return ERR_STACK_UNDERFLOW;
@@ -231,16 +219,12 @@ ErrEnum stPop(Stack* st, StackElem* elem)
     // }
 
     stUpdateHash(st);
-    ST_ON_DEBUG(returnErr(stErr(st)));
+    stAssert(stErr(st) == ERR_OK);
     return ERR_OK;
 }
 
 ErrEnum stErr(Stack* st)
-{
-    #ifdef ST_NDEBUG
-    return ERR_OK;
-    #endif // ST_NDEBUG
-    
+{    
     if (st == NULL)
     {
         return ERR_NULL_STACK;

@@ -21,7 +21,7 @@ while [ -n "$1" ] ; do
                 "spu" | "asm" | "bin")
                 ;;
                 *)
-                    echo "Invalid backend"
+                    echo "Invalid backend: $backend"
                     exit 1
                 ;;
             esac

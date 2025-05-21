@@ -1,7 +1,7 @@
 #ifndef MY_ERROR_H
 #define MY_ERROR_H
 
-// #define MY_NDEBUG
+#define MY_NDEBUG
 
 #define handleErr(err_num) handleErrFn(err_num, __FILE__, __LINE__, __FUNCTION__)
     

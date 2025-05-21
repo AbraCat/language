@@ -23,10 +23,20 @@ static ErrEnum binCompileFuncDecl(FILE* fout, Node* node);
 static ErrEnum binCompileBody(FILE* fout, Node* node);
 static ErrEnum binCompileS(FILE* fout, Node* node);
 
+static ErrEnum binCompileVarDecl(FILE* fout, Node* node);
+static ErrEnum binCompileRet(FILE* fout, Node* node);
+static ErrEnum binCompileAssign(FILE* fout, Node* node);
 static ErrEnum binCompileIf(FILE* fout, Node* node);
 static ErrEnum binCompileWhile(FILE* fout, Node* node);
+
 static ErrEnum binCompileE(FILE* fout, Node* node);
 static ErrEnum binCompilePushE(FILE* fout, Node* node);
+
+static ErrEnum binCompileNum(FILE* fout, Node* node);
+static ErrEnum binCompileVar(FILE* fout, Node* node);
+static ErrEnum binCompileFuncCall(FILE* fout, Node* node);
+static ErrEnum binCompileArithmetic(FILE* fout, Node* node, OpInfo* op_info);
+static ErrEnum binCompileComparison(FILE* fout, Node* node, OpInfo* op_info);
 
 static BinBackend* b = NULL;
 static const unsigned byte_size = 0x100;
@@ -165,49 +175,54 @@ static ErrEnum binCompileS(FILE* fout, Node* node)
 
     if (node->type == TYPE_OP) switch (node->val.op_code)
     {
-        case OP_VAR:
-            myAssert(node->lft != NULL && node->lft->type == TYPE_VAR);
-            myAssert(node->lft->val.var_id == n_vars);
-
-            writeBytes(PUSH_NUM);
-            writeByte(node->lft->val.var_id);
-
-            ++n_vars;
-            return ERR_OK;
-        case OP_IF:
-            returnErr(binCompileIf(fout, node));
-            return ERR_OK;
-        case OP_WHILE:
-            returnErr(binCompileWhile(fout, node));
-            return ERR_OK;
-        case OP_RET:
-            myAssert(node->lft != NULL);
-            returnErr(binCompileE(fout, node->lft));
-            
-            if (n_vars != b->n_args)
-            {
-                writeBytes(ADD_RSP_NUM);
-                writeByte(8 * (n_vars - b->n_args));
-            }
-            writeBytes(POP_RBP);
-            writeBytes(RET);
-            return ERR_OK;
-        case OP_ASSIGN:
-        {
-            myAssert(node->lft != NULL && node->lft->type == TYPE_VAR && node->rgt != NULL);
-            returnErr(binCompileE(fout, node->rgt));
-
-            int var_id = node->lft->val.var_id;
-            writeBytes(MOV_RBP_PLUS_NUM_RAX);
-            if (var_id < b->n_args) writeByte(8 * (b->n_args + 1 - var_id));
-            else writeByte(0x100 - 8 * (var_id - b->n_args + 1));
-
-            return ERR_OK;
-        }
-        default:
-            break;
+        case OP_VAR: return binCompileVarDecl(fout, node);
+        case OP_IF: return binCompileIf(fout, node);
+        case OP_WHILE: return binCompileWhile(fout, node);
+        case OP_RET: return binCompileRet(fout, node);
+        case OP_ASSIGN: return binCompileAssign(fout, node);
+        default: break;
     }
-    returnErr(binCompileE(fout, node));
+
+    return binCompileE(fout, node);
+}
+
+static ErrEnum binCompileVarDecl(FILE* fout, Node* node)
+{
+    myAssert(node->lft != NULL && node->lft->type == TYPE_VAR);
+    myAssert(node->lft->val.var_id == n_vars);
+
+    writeBytes(PUSH_NUM);
+    writeByte(node->lft->val.var_id);
+
+    ++n_vars;
+    return ERR_OK;
+}
+
+static ErrEnum binCompileRet(FILE* fout, Node* node)
+{
+    myAssert(node->lft != NULL);
+    returnErr(binCompileE(fout, node->lft));
+    
+    if (n_vars != b->n_args)
+    {
+        writeBytes(ADD_RSP_NUM);
+        writeByte(8 * (n_vars - b->n_args));
+    }
+    writeBytes(POP_RBP);
+    writeBytes(RET);
+    return ERR_OK;
+}
+
+static ErrEnum binCompileAssign(FILE* fout, Node* node)
+{
+    myAssert(node->lft != NULL && node->lft->type == TYPE_VAR && node->rgt != NULL);
+    returnErr(binCompileE(fout, node->rgt));
+
+    int var_id = node->lft->val.var_id;
+    writeBytes(MOV_RBP_PLUS_NUM_RAX);
+    if (var_id < b->n_args) writeByte(8 * (b->n_args + 1 - var_id));
+    else writeByte(byte_size - 8 * (var_id - b->n_args + 1));
+
     return ERR_OK;
 }
 
@@ -264,38 +279,9 @@ static ErrEnum binCompileE(FILE* fout, Node* node)
 {
     myAssert(fout != NULL && node != NULL);
 
-    if (node->type == TYPE_NUM)
-    {
-        // mov rax, node->val.num
-        if (node->val.num >= 0) writeBytes(MOV_RAX_NONNEGATIVE);
-        else writeBytes(MOV_RAX_NEGATIVE);
-        writeInt(node->val.num);
-        return ERR_OK;
-    }
-    if (node->type == TYPE_VAR)
-    {
-        int var_id = node->val.var_id;
-        writeBytes(MOV_RAX_RBP_PLUS_NUM);
-        if (var_id < b->n_args) writeByte(8 * (b->n_args + 1 - var_id));
-        else writeByte(0x100 - 8 * (var_id - b->n_args + 1));
-
-        return ERR_OK;
-    }
-    if (node->type == TYPE_FUNC)
-    {
-        if (node->lft != NULL) returnErr(compileCommaSeparated(fout, node->lft, 
-            binCompilePushE));
-
-        writeBytes(CALL);
-        FIXUP_FUNCTION_LABEL(node->val.func_name)
-
-        Name* name_struct = findName(b->name_arr, node->val.func_name);
-        myAssert(name_struct != NULL && name_struct->type == NAME_FUNC);
-        
-        writeBytes(ADD_RSP_NUM);
-        writeByte(8 * name_struct->n_args);
-        return ERR_OK;
-    }
+    if (node->type == TYPE_NUM) return binCompileNum(fout, node);
+    if (node->type == TYPE_VAR) return binCompileVar(fout, node);
+    if (node->type == TYPE_FUNC) return binCompileFuncCall(fout, node);
     myAssert(node->type == TYPE_OP);
 
     returnErr(binCompileE(fout, node->rgt));
@@ -307,41 +293,95 @@ static ErrEnum binCompileE(FILE* fout, Node* node)
     OpInfo *op_info = NULL;
     returnErr(getOpByCode(node->val.op_code, &op_info));
     if (op_info->priority > cmp_op_priority)
+        return binCompileArithmetic(fout, node, op_info);
+
+    myAssert(op_info->priority == cmp_op_priority);
+    return binCompileComparison(fout, node, op_info);
+}
+
+static ErrEnum binCompilePushE(FILE* fout, Node* node)
+{
+    returnErr(binCompileE(fout, node));
+    writeBytes(PUSH_RAX);
+    return ERR_OK;
+}
+
+static ErrEnum binCompileNum(FILE* fout, Node* node)
+{
+    // mov rax, node->val.num
+    if (node->val.num >= 0) writeBytes(MOV_RAX_NONNEGATIVE);
+    else writeBytes(MOV_RAX_NEGATIVE);
+    writeInt(node->val.num);
+    return ERR_OK;
+}
+
+static ErrEnum binCompileVar(FILE* fout, Node* node)
+{
+    int var_id = node->val.var_id;
+    writeBytes(MOV_RAX_RBP_PLUS_NUM);
+    if (var_id < b->n_args) writeByte(8 * (b->n_args + 1 - var_id));
+    else writeByte(0x100 - 8 * (var_id - b->n_args + 1));
+
+    return ERR_OK;
+}
+
+static ErrEnum binCompileFuncCall(FILE* fout, Node* node)
+{
+    if (node->lft != NULL)
+        returnErr(compileCommaSeparated(fout, node->lft, binCompilePushE));
+
+    writeBytes(CALL);
+    FIXUP_FUNCTION_LABEL(node->val.func_name)
+
+    Name* name_struct = findName(b->name_arr, node->val.func_name);
+    myAssert(name_struct != NULL && name_struct->type == NAME_FUNC);
+    
+    writeBytes(ADD_RSP_NUM);
+    writeByte(8 * name_struct->n_args);
+    return ERR_OK;
+}
+
+static ErrEnum binCompileArithmetic(FILE* fout, Node* node, OpInfo* op_info)
+{
+    // assume operands are in rax and rbx
+
+    if (node->val.op_code == OP_DIV)
     {
-        if (node->val.op_code == OP_DIV)
-        {
-            writeBytes(XOR_RDX_RDX);
-            writeBytes(CMP_RAX_RDX);
-            writeBytes(MOV_RCX_NUM);
-            writeInt(-1);
-            writeBytes(CMOVL_RAX_RDX);
-            writeBytes(IDIV_RBX);
-            return ERR_OK;
-        }
-        // op rax, rbx
-        int instr_code = 0;
-        switch (op_info->op_code)
-        {
-            case OP_ADD:
-                instr_code = ADD_RAX_RBX;
-                break;
-            case OP_SUB:
-                instr_code = SUB_RAX_RBX;
-                break;
-            case OP_MUL:
-                instr_code = IMUL_RAX_RBX;
-                break;
-            case OP_XOR:
-                instr_code = XOR_RAX_RBX;
-                break;
-            default:
-                myAssert(0);
-        }
-        writeBytes(instr_code);
+        writeBytes(XOR_RDX_RDX);
+        writeBytes(CMP_RAX_RDX);
+        writeBytes(MOV_RCX_NUM);
+        writeInt(-1);
+        writeBytes(CMOVL_RAX_RDX);
+        writeBytes(IDIV_RBX);
         return ERR_OK;
     }
-    myAssert(op_info->priority == cmp_op_priority);
-    
+    // op rax, rbx
+    int instr_code = 0;
+    switch (op_info->op_code)
+    {
+        case OP_ADD:
+            instr_code = ADD_RAX_RBX;
+            break;
+        case OP_SUB:
+            instr_code = SUB_RAX_RBX;
+            break;
+        case OP_MUL:
+            instr_code = IMUL_RAX_RBX;
+            break;
+        case OP_XOR:
+            instr_code = XOR_RAX_RBX;
+            break;
+        default:
+            myAssert(0);
+    }
+    writeBytes(instr_code);
+    return ERR_OK;
+}
+
+static ErrEnum binCompileComparison(FILE* fout, Node* node, OpInfo* op_info)
+{
+    // assume operands are in rax and rbx
+
     int label_num = b->label_cnt++, instr_code = 0;
     writeBytes(CMP_RAX_RAX);
     switch (op_info->op_code)
@@ -379,12 +419,5 @@ static ErrEnum binCompileE(FILE* fout, Node* node)
     writeInt(1);
 
     DEFINE_LABEL("cmpEnd")
-    return ERR_OK;
-}
-
-static ErrEnum binCompilePushE(FILE* fout, Node* node)
-{
-    returnErr(binCompileE(fout, node));
-    writeBytes(PUSH_RAX);
     return ERR_OK;
 }
