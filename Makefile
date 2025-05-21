@@ -1,6 +1,6 @@
 .PHONY: all bin-stdlib run prc dis create_dir clean clean_log bench
 
-all: exe/front.exe exe/middle.exe exe/spu-back.exe exe/asm-back.exe exe/bin-back.exe exe/proc.exe exe/benchmark.exe
+all: exe/front.exe exe/middle.exe exe/spu-back.exe exe/asm.exe exe/asm-back.exe exe/bin-back.exe exe/proc.exe exe/benchmark.exe
 
 bin-stdlib:
 	@nasm -felf64 src/bin-standard.asm -o bin/stdlib.o
@@ -127,8 +127,11 @@ exe/front.exe: o/main/main-front.o $(COMMON_O_FILES) $(TREE_O_FILES) $(FRONT_O_F
 exe/middle.exe: o/main/main-middle.o $(COMMON_O_FILES) $(TREE_O_FILES) $(MIDDLE_O_FILES)
 	@$(CC)    o/main/main-middle.o $(COMMON_O_FILES) $(TREE_O_FILES) $(MIDDLE_O_FILES) -o exe/middle.exe
 
-exe/spu-back.exe: o/main/main-spu-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES) $(ASM_O_FILES)
-	@$(CC) o/main/main-spu-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES) $(ASM_O_FILES) -o exe/spu-back.exe
+exe/spu-back.exe: o/main/main-spu-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES)
+	@$(CC) o/main/main-spu-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES) -o exe/spu-back.exe
+
+exe/asm.exe: o/main/main-asm.o $(COMMON_O_FILES) $(ASM_O_FILES)
+	@$(CC) o/main/main-asm.o $(COMMON_O_FILES) $(ASM_O_FILES) -o exe/asm.exe
 
 exe/asm-back.exe: o/main/main-asm-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES)
 	@$(CC)    o/main/main-asm-back.o $(COMMON_O_FILES) $(TREE_O_FILES) $(BACK_O_FILES) -o exe/asm-back.exe

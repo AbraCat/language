@@ -9,34 +9,26 @@
 #include <disassembler.h>
 #include <spu-backend.h>
 
-const char *std_tree_name = "./txt/tree.txt", 
-           *std_asm_name = "./txt/asm.txt",   
-           *std_code_name = "./txt/code.txt";
+const char *std_tree_name = "./txt/tree.txt", *std_asm_name = "./txt/asm.txt";
 
 int main(int argc, const char* argv[])
 {
-    const int n_opts = 3;
-    Option opts[] = {{"-i", "--input"}, {"-a", "--asm"}, {"-o", "--output"}};
+    const int n_opts = 2;
+    Option opts[] = {{"-i", "--input"}, {"-o", "--output"}};
     handleErr(parseOpts(argc, argv, opts, n_opts));
 
-    const char *tree_name = optByName(opts, n_opts, "-i")->str_arg, 
-                *asm_name = optByName(opts, n_opts, "-a")->str_arg,
-               *code_name = optByName(opts, n_opts, "-o")->str_arg;
+    const char  *tree_name = optByName(opts, n_opts, "-i")->str_arg, 
+                *asm_name = optByName(opts, n_opts, "-o")->str_arg;
     if (tree_name == NULL) tree_name = std_tree_name;
     if (asm_name == NULL) asm_name = std_asm_name;
-    if (code_name == NULL) code_name = std_code_name;
 
     Node *tree = NULL;
     handleErr(treeRead(tree_name, &tree, NULL));
 
     FILE *asm_file = fopen(asm_name, "w");
     handleErr(runBackend(tree, asm_file));
-    fclose(asm_file);
-
-    asm_file = fopen(asm_name, "r");
-    FILE *code_file = fopen(code_name, "wb");
-    handleErr(runAsm(asm_file, code_file));
     
+    nodeDtor(tree);
     fclose(asm_file);
-    fclose(code_file);
+    return 0;
 }

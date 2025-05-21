@@ -35,6 +35,7 @@ exe/middle.exe
 case $backend in
     "spu")
         exe/spu-back.exe
+        exe/asm.exe
     ;;
     "asm")
         exe/asm-back.exe

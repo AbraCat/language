@@ -11,9 +11,7 @@
 const char *std_tree_name = "./txt/tree.txt", *std_bin_name = "bin/prog.exe";
 
 int main(int argc, const char* argv[])
-{
-    // return stripStdlib();
-    
+{   
     const int n_opts = 2;
     Option opts[] = {{"-i", "--input"}, {"-o", "--output"}};
     handleErr(parseOpts(argc, argv, opts, n_opts));
