@@ -192,7 +192,7 @@ static ErrEnum binCompileVarDecl(FILE* fout, Node* node)
     myAssert(node->lft->val.var_id == n_vars);
 
     writeBytes(PUSH_NUM);
-    writeByte(node->lft->val.var_id);
+    writeByte(0);
 
     ++n_vars;
     return ERR_OK;
