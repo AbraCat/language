@@ -8,6 +8,7 @@
 #include <backend.h>
 
 #include <stdlib.h>
+#include <elf.h>
 
 static void writeByte(unsigned char n);
 static void writeBytes(unsigned n);
@@ -39,9 +40,8 @@ static ErrEnum binCompileArithmetic(FILE* fout, Node* node, OpInfo* op_info);
 static ErrEnum binCompileComparison(FILE* fout, Node* node, OpInfo* op_info);
 
 static BinBackend* b = NULL;
-static const unsigned byte_size = 0x100;
-static const int e_entry_adr = 0x18, p_filesz_adr = 0x98, p_memsz_adr = 0xa0, code_size_len = 2;
-static const int cmp_op_priority = 1, buflen = 0x3000, name_buf_len = 100, code_offset = 0x1000;
+static const unsigned byte_size = 0x100, virtual_adr = 0x400000;
+static const int cmp_op_priority = 1, buflen = 0x3000, name_buf_len = 100;
 
 #define DEFINE_LABEL(name) returnErr(addNumberedLabel(name, label_num, 0));
 #define FIXUP_LABEL(name)\
@@ -62,7 +62,8 @@ static ErrEnum binBackendCtor(BinBackend** backend, FILE* fout, Node* tree)
     b->name_buf = (char*)calloc(name_buf_len, 1);
 
     returnErr(getHeaderAndStdlib(b->buf));
-    b->pos = *(short*)(b->buf + e_entry_adr);
+    Elf64_Addr entry = ((Elf64_Ehdr*)(b->buf))->e_entry;
+    b->pos = entry - virtual_adr;
     b->label_cnt = 0;
 
     returnErr(labelArrayCtor(&b->la));

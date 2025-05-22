@@ -6,7 +6,7 @@
 #include <tree.h>
 #include <asm-backend.h>
 
-const char *std_tree_name = "./txt/tree.txt", *std_nasm_name = "asm/prog.asm";
+const char *std_tree_name = "txt/tree-optimized.txt", *std_nasm_name = "asm/prog.asm";
 
 int main(int argc, const char* argv[])
 {

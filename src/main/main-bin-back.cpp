@@ -8,7 +8,7 @@
 #include <standardlib.h>
 #include <bin-backend.h>
 
-const char *std_tree_name = "./txt/tree.txt", *std_bin_name = "bin/prog.exe";
+const char *std_tree_name = "txt/tree-optimized.txt", *std_bin_name = "bin/prog.exe";
 
 int main(int argc, const char* argv[])
 {   

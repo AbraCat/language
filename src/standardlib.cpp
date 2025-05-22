@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <elf.h>
 
-static const int virtual_adr = 0x400000, code_offset = 0x1000, ph_align = 0x1000;
+static const int phnum = 1, virtual_adr = 0x400000, code_offset = 0x1000, ph_align = 0x1000;
 static const int input_offset = 0, output_offset = 2, exit_offset = 7;
 static const int stdlib_buflen = 10000, max_bin_stdlib_len = 10000;
+
 static const char asm_std_lib[] = "src/asm-standard.asm", stdlib_full[] = "bin/stdlib.exe",
                   stdlib_stripped[] = "bin/stdlib-stripped.exe";
 
@@ -28,7 +29,7 @@ ErrEnum stripStdlib()
 
     FILE *fout = fopen(stdlib_stripped, "w");
     if (fout == NULL) return ERR_OPEN_FILE;
-    fwrite(buf + p_offset, 1, entrypoint - p_offset, fout);
+    fwrite(buf + p_offset, sizeof(char), entrypoint - p_offset, fout);
     fclose(fout);
 
     return ERR_OK;
@@ -37,31 +38,31 @@ ErrEnum stripStdlib()
 void writeHeader(char* buf, int entrypoint)
 {
     Elf64_Ehdr* hdr = (Elf64_Ehdr*)buf;
-    hdr->e_ident[EI_MAG0] = 0x7f; // magic bytes
-    hdr->e_ident[EI_MAG1] = 'E';
-    hdr->e_ident[EI_MAG2] = 'L';
-    hdr->e_ident[EI_MAG3] = 'F';
-    hdr->e_ident[EI_CLASS] = 2; // 64 bit
-    hdr->e_ident[EI_DATA] = 1; // little endian
-    hdr->e_ident[EI_VERSION] = 1;
-    hdr->e_ident[EI_OSABI] = 0;
+    hdr->e_ident[EI_MAG0] = ELFMAG0;
+    hdr->e_ident[EI_MAG1] = ELFMAG1;
+    hdr->e_ident[EI_MAG2] = ELFMAG2;
+    hdr->e_ident[EI_MAG3] = ELFMAG3;
+
+    hdr->e_ident[EI_CLASS] = ELFCLASS64;
+    hdr->e_ident[EI_DATA] = ELFDATA2LSB;
+    hdr->e_ident[EI_VERSION] = EV_CURRENT;
+    hdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
     
     hdr->e_type = ET_EXEC;
-    hdr->e_machine = 0x3e; // amd x86-64
-    hdr->e_version = 1;
+    hdr->e_machine = EM_X86_64;
+    hdr->e_version = EV_CURRENT;
     hdr->e_entry = virtual_adr + code_offset + entrypoint;
 
-    hdr->e_phoff = 0x40;
-    hdr->e_ehsize = 0x40;
-    hdr->e_phentsize = 0x38;
-    hdr->e_phnum = 1;
-
+    hdr->e_phoff = hdr->e_ehsize = sizeof(Elf64_Ehdr);
+    hdr->e_phentsize = sizeof(Elf64_Phdr);
+    hdr->e_phnum = phnum;
     writeProgramHeader(buf + hdr->e_phoff, PF_R | PF_X, 0);
 }
 
 void writeProgramHeader(char* buf, int flags, int offset)
 {
     Elf64_Phdr* ph = (Elf64_Phdr*)buf;
+
     ph->p_type = PT_LOAD;
     ph->p_flags = flags;
     ph->p_offset = offset;

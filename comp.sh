@@ -14,7 +14,7 @@ while [ -n "$1" ] ; do
 			shift
 			output_file=$1
 		;;
-        "-b" | "--backend")
+        "-m" | "--machine")
 			shift
 			backend=$1
             case $backend in

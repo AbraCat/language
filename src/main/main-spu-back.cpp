@@ -9,7 +9,7 @@
 #include <disassembler.h>
 #include <spu-backend.h>
 
-const char *std_tree_name = "./txt/tree.txt", *std_asm_name = "./txt/asm.txt";
+const char *std_tree_name = "txt/tree-optimized.txt", *std_asm_name = "./txt/asm.txt";
 
 int main(int argc, const char* argv[])
 {
